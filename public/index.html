@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>News Focus</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <svg class="mark" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="7.5" fill="none" stroke="var(--mark-border)" stroke-width="1.2"/>
+          <circle cx="16" cy="16" r="10" fill="none" stroke="var(--mark-line)" stroke-width="1.3"/>
+          <circle cx="16" cy="16" r="5.5" fill="none" stroke="#f0652f" stroke-width="1" opacity="0.5"/>
+          <circle cx="16" cy="16" r="2.5" fill="#f0652f"/>
+        </svg>
+        <div>
+          <h1>News Focus</h1>
+        </div>
+      </div>
+      <div class="actions" role="group" aria-label="工具栏">
+        <label class="search">
+          <span aria-hidden="true">⌕</span>
+          <input id="searchInput" type="search" placeholder="搜索标题或摘要" autocomplete="off" />
+        </label>
+        <div class="mode" aria-label="显示模式">
+          <button id="imageMode" class="active" type="button">有图</button>
+          <button id="textMode" type="button">无图</button>
+        </div>
+        <button id="refreshButton" class="icon-button" type="button" aria-label="刷新">
+          <span aria-hidden="true">↻</span>
+        </button>
+        <button id="themeButton" class="icon-button" type="button" aria-label="切换夜间模式" title="切换夜间模式">
+          <span aria-hidden="true">☾</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="shell">
+      <div class="top-row">
+        <nav id="categoryTabs" class="category-tabs" aria-label="新闻类别"></nav>
+        <nav class="category-tabs" aria-label="排序">
+          <button id="sortLatest" class="category-tab active" type="button">最新</button>
+          <button id="sortTop" class="category-tab" type="button">热门</button>
+        </nav>
+      </div>
+      <nav id="sourceTabs" class="tabs" aria-label="来源"></nav>
+      <section id="errorBox" class="notice" hidden></section>
+      <section id="feed" class="feed" aria-live="polite"></section>
+    </main>
+
+    <template id="articleTemplate">
+      <article class="story">
+        <a class="media" target="_blank" rel="noreferrer">
+          <img alt="" loading="lazy" />
+        </a>
+        <div class="story-body">
+          <div class="meta">
+            <a class="source" target="_blank" rel="noreferrer"></a>
+            <span class="dot"></span>
+            <time></time>
+            <span class="hn-stat"></span>
+          </div>
+          <a class="title" target="_blank" rel="noreferrer"></a>
+          <p class="original-title"></p>
+          <p class="summary"></p>
+          <div class="links">
+            <a class="origin" target="_blank" rel="noreferrer">原文</a>
+            <a class="discussion" target="_blank" rel="noreferrer">讨论</a>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

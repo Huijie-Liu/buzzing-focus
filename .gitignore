@@ -1,0 +1,19 @@
+.DS_Store
+
+# Local Python artifacts
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local config and secrets
+.env
+.env.*
+!.env.example
+.claude/
+
+# Runtime/generated data
+.translation_cache.json
+
+# Deployment metadata
+.vercel/
