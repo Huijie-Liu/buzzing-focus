@@ -1197,6 +1197,18 @@ def create_flask_app():
             return cors_preflight_response()
         return None
 
+    @flask_app.get("/api/debug")
+    def flask_debug():
+        return json_response({
+            "has_deepseek_key": bool(DEEPSEEK_KEY),
+            "has_claude_token": bool(CLAUDE_DEEPSEEK.get("token")),
+            "claude_base_url": CLAUDE_DEEPSEEK.get("base_url", ""),
+            "deepseek_base_url": DEEPSEEK_BASE_URL,
+            "model": TRANSLATION_MODEL,
+            "has_openai": openai is not None,
+            "_deepseek_client": bool(_deepseek_client),
+        })
+
     @flask_app.after_request
     def add_cors_headers(response):
         response.headers.setdefault("Access-Control-Allow-Origin", "*")
