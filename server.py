@@ -265,7 +265,7 @@ DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.co
 TRANSLATION_MODEL = (
     os.environ.get("DEEPSEEK_MODEL")
     or (CLAUDE_DEEPSEEK.get("model") if not DEEPSEEK_KEY else "")
-    or "deepseek-chat"
+    or "deepseek-v4-pro"
 )
 _deepseek_client = openai.OpenAI(
     api_key=DEEPSEEK_KEY, base_url=DEEPSEEK_BASE_URL
