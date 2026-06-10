@@ -256,6 +256,20 @@ def claude_deepseek_config():
             "token": token,
             "path": str(path),
         }
+    base_url = clean(os.environ.get("ANTHROPIC_BASE_URL", ""))
+    token = clean(os.environ.get("ANTHROPIC_AUTH_TOKEN", ""))
+    if token and "deepseek" in base_url.lower():
+        model = (
+            clean(os.environ.get("ANTHROPIC_MODEL", ""))
+            or clean(os.environ.get("ANTHROPIC_DEFAULT_SONNET_MODEL", ""))
+            or "deepseek-chat"
+        )
+        return {
+            "base_url": base_url.rstrip("/"),
+            "model": model,
+            "token": token,
+            "path": "env",
+        }
     return {}
 
 
