@@ -307,8 +307,6 @@ function renderArticle(item) {
 
   const srcEl = node.querySelector(".source");
   srcEl.textContent = item.sourceLabel;
-  const srcHome = sourceMeta(sourceKey)?.home || "#";
-  if (srcHome !== "#") srcEl.href = srcHome;
 
   const time = node.querySelector("time");
   time.textContent = formatRelativeTime(item.publishedAt);
@@ -706,7 +704,6 @@ function addExpandButtons() {
       if (story.classList.contains("story-zhihu")) {
         const stats = story.querySelector(".card-stats");
         if (stats) {
-          btn.classList.add("expand-zhihu");
           stats.appendChild(btn);
           return;
         }

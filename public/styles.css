@@ -438,18 +438,12 @@ body.theme-dark .story.translating:not(.read) {
   padding: 14px 16px;
 }
 
-/* Meta row: hidden everywhere (source/dot gone, time in links row,
-   publisher badge moved into the title). */
-.meta {
+/* Meta row: hidden inside story cards (source/dot gone, time in links row). */
+.story .meta {
   display: none;
 }
 
-.meta .source,
-.meta .dot {
-  display: none;
-}
-
-/* Publisher badge sits inline at the start of the title */
+/* Publisher badge — right-aligned in the links row */
 .publisher-badge {
   display: inline-flex;
   align-items: center;
@@ -469,17 +463,12 @@ body.theme-dark .story.translating:not(.read) {
   color: var(--muted);
 }
 
-.hn-stat {
-  white-space: nowrap;
-}
-
 /* ---- Source-variant card tuning ---- */
 
 /* HN: compact text card — no images, stats are the focus.
    Badges + time share one row, all right-aligned. */
 .story-hn .media { display: none !important; }
 .story-hn .story-body { padding: 12px 16px; }
-.story-hn .summary { display: none; }
 .story-hn .links { margin-top: 6px; }
 .story-hn .card-stats {
   justify-content: space-between;
@@ -510,21 +499,21 @@ body.theme-dark .story.translating:not(.read) {
 
 /* Reuters: image-forward, larger hero image since no summary */
 .story-reuters .media img { height: 210px; }
-.story-reuters .summary { display: none; }
 .story-reuters .story-body { padding: 11px 16px 13px; }
 
-/* Google News: hide the summary (it only repeats the publisher name,
-   which is already shown as a .publisher-badge). */
+/* Sources with no meaningful summary: HN (none), Reuters (sitemap has
+   none), Google News (only repeats the publisher name). */
+.story-hn .summary,
+.story-reuters .summary,
 .story-google .summary,
 .story-google_zh .summary { display: none; }
 
 /* RSS / Atom with images: slightly taller image */
-  color: var(--ink);
-  font-size: 19px;
-  font-weight: 740;
-  line-height: 1.32;
-  transition: color 0.22s ease;
-}
+.story-economist .media img,
+.story-bloomberg .media img,
+.story-atlantic .media img,
+.story-newyorker .media img,
+.story-mit_tech .media img { height: 180px; }
 
 .story.translating .title::after {
   display: inline-block;
