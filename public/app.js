@@ -339,11 +339,14 @@ function renderArticle(item) {
 
   // ---- Source-specific features ----
 
-  // HN: prominent stats badges (points, comments) + author.
-  // The comments badge doubles as the discussion link — no separate "讨论".
+  // HN: stats badges (points, comments) grouped right; time left.
+  // Comments badge doubles as the discussion link.
   if (sourceKey === "hn") {
     const statsEl = document.createElement("div");
     statsEl.className = "card-stats";
+
+    const badgeGroup = document.createElement("span");
+    badgeGroup.className = "hn-badges";
 
     const score = Number.isFinite(Number(item.score)) ? Number(item.score) : null;
     const comments = Number.isFinite(Number(item.comments)) ? Number(item.comments) : null;
@@ -353,7 +356,7 @@ function renderArticle(item) {
       const points = document.createElement("span");
       points.className = "stat-badge points";
       points.textContent = `▲ ${score}`;
-      statsEl.appendChild(points);
+      badgeGroup.appendChild(points);
     }
     if (comments !== null) {
       const commLink = document.createElement("a");
@@ -363,18 +366,11 @@ function renderArticle(item) {
       commLink.rel = "noreferrer";
       commLink.textContent = `💬 ${comments}`;
       commLink.addEventListener("click", markCurrentRead);
-      statsEl.appendChild(commLink);
-    }
-    // Author (stored in summary by server)
-    const author = (item.summaryOriginal || "").trim();
-    if (author && !/^\d/.test(author)) {
-      const auth = document.createElement("span");
-      auth.className = "stat-badge author";
-      auth.textContent = author;
-      statsEl.appendChild(auth);
+      badgeGroup.appendChild(commLink);
     }
 
-    if (statsEl.children.length) {
+    if (badgeGroup.children.length) {
+      statsEl.appendChild(badgeGroup);
       links.insertAdjacentElement("beforebegin", statsEl);
     }
   }
@@ -395,14 +391,14 @@ function renderArticle(item) {
     }
   }
 
-  // Google News: publisher badge in meta
+  // Google News: publisher badge in links row, right-aligned
   if (sourceKey === "google" || sourceKey === "google_zh") {
     const publisher = (item.summaryOriginal || "").trim();
     if (publisher && publisher.length < 40) {
       const pubBadge = document.createElement("span");
       pubBadge.className = "publisher-badge";
       pubBadge.textContent = publisher;
-      srcEl.after(pubBadge);
+      links.appendChild(pubBadge);
     }
   }
 
@@ -413,6 +409,19 @@ function renderArticle(item) {
     discussion.addEventListener("click", markCurrentRead);
   } else {
     discussion.remove();
+  }
+
+  // Move time from the (now-hidden) meta row into the links row as a muted prefix.
+  // HN: time goes into the card-stats row instead, right-aligned with the badges.
+  const timeEl = node.querySelector("time");
+  if (timeEl) {
+    timeEl.classList.add("card-time");
+    if (sourceKey === "hn") {
+      const hnStats = node.querySelector(".card-stats");
+      if (hnStats) hnStats.insertBefore(timeEl, hnStats.firstChild);
+    } else {
+      links.insertBefore(timeEl, links.firstChild);
+    }
   }
 
   return node;
@@ -693,6 +702,16 @@ function addExpandButtons() {
         const expanded = story.classList.toggle("expanded");
         btn.textContent = expanded ? "收起" : "展开";
       });
+      // Zhihu: expand button lives in the card-stats row next to the heat badge
+      if (story.classList.contains("story-zhihu")) {
+        const stats = story.querySelector(".card-stats");
+        if (stats) {
+          btn.classList.add("expand-zhihu");
+          stats.appendChild(btn);
+          return;
+        }
+      }
+      // All other sources: expand button goes in the links row, right-aligned
       const links = story.querySelector(".links");
       const discussion = links.querySelector(".discussion");
       if (discussion) {

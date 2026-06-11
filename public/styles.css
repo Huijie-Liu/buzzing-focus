@@ -438,13 +438,10 @@ body.theme-dark .story.translating:not(.read) {
   padding: 14px 16px;
 }
 
+/* Meta row: hidden everywhere (source/dot gone, time in links row,
+   publisher badge moved into the title). */
 .meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.2;
+  display: none;
 }
 
 .meta .source,
@@ -452,44 +449,76 @@ body.theme-dark .story.translating:not(.read) {
   display: none;
 }
 
-/* Google News publisher badge stays visible (it shows the actual
-   article publisher, not the column name). */
+/* Publisher badge sits inline at the start of the title */
 .publisher-badge {
-  margin-left: 0;
-}
-
-/* Time floats as a subtle chip in the top-right corner of the card body,
-   overlapping the title area — no wasted row. */
-.meta time {
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  z-index: 2;
+  display: inline-flex;
+  align-items: center;
   padding: 1px 6px;
+  margin-left: auto;
   border-radius: 3px;
-  background: var(--panel);
-  font-size: 11px;
+  background: var(--soft);
   color: var(--muted);
-  white-space: nowrap;
-  pointer-events: none;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: middle;
 }
 
-/* For image-less cards, the meta row has no visible children (source and
-   dot are hidden, time is absolute). Collapse it so it doesn't consume
-   any vertical space. */
-.story:not(.story-google):not(.story-google_zh) .meta {
-  height: 0;
-  min-height: 0;
-  overflow: visible;
+/* Time lives in the links row — subtle, left side */
+.card-time {
+  font-size: 12px;
+  color: var(--muted);
 }
 
 .hn-stat {
   white-space: nowrap;
 }
 
-.title {
-  display: block;
-  margin: 2px 0 0;
+/* ---- Source-variant card tuning ---- */
+
+/* HN: compact text card — no images, stats are the focus.
+   Badges + time share one row, all right-aligned. */
+.story-hn .media { display: none !important; }
+.story-hn .story-body { padding: 12px 16px; }
+.story-hn .summary { display: none; }
+.story-hn .links { margin-top: 6px; }
+.story-hn .card-stats {
+  justify-content: space-between;
+}
+
+.hn-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Zhihu: hot-list vibe — heat badge, compact.
+   Expand button sits next to the heat badge, right-aligned
+   and matches the badge font size for visual consistency. */
+.story-zhihu .story-body { padding: 12px 16px; }
+.story-zhihu time { display: none; }
+.story-zhihu .meta .dot { display: none; }
+.story-zhihu .card-stats {
+  display: flex;
+  align-items: center;
+}
+.story-zhihu .card-stats .expand-toggle {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+/* Reuters: image-forward, larger hero image since no summary */
+.story-reuters .media img { height: 210px; }
+.story-reuters .summary { display: none; }
+.story-reuters .story-body { padding: 11px 16px 13px; }
+
+/* Google News: hide the summary (it only repeats the publisher name,
+   which is already shown as a .publisher-badge). */
+.story-google .summary,
+.story-google_zh .summary { display: none; }
+
+/* RSS / Atom with images: slightly taller image */
   color: var(--ink);
   font-size: 19px;
   font-weight: 740;
@@ -532,6 +561,16 @@ body.theme-dark .story.translating:not(.read) {
   50% { opacity: 0.65; }
 }
 
+.title {
+  display: block;
+  margin: 2px 0 0;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 740;
+  line-height: 1.32;
+  transition: color 0.22s ease;
+}
+
 .story.read .title {
   color: var(--read-title);
   font-weight: 680;
@@ -568,6 +607,7 @@ body.theme-dark .story.translating:not(.read) {
 
 .links {
   display: flex;
+  align-items: center;
   gap: 12px;
   margin-top: 8px;
   color: var(--muted);
@@ -579,6 +619,7 @@ body.theme-dark .story.translating:not(.read) {
 }
 
 .expand-toggle {
+  margin-left: auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -651,67 +692,6 @@ body.theme-dark .story.translating:not(.read) {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 50, 46, 0.35); }
   50% { box-shadow: 0 0 8px 2px rgba(255, 50, 46, 0.18); }
 }
-
-.stat-badge.author {
-  background: transparent;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-weight: 500;
-}
-
-/* Publisher badge for Google News items */
-.publisher-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 6px;
-  margin-left: 6px;
-  border-radius: 3px;
-  background: var(--soft);
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-  vertical-align: middle;
-}
-
-/* ---- Source-variant card tuning ---- */
-
-/* HN: compact text card — no images, stats are the focus */
-.story-hn .media { display: none !important; }
-.story-hn .story-body { padding: 12px 16px; }
-.story-hn .title { font-size: 16px; }
-.story-hn .summary { display: none; }
-.story-hn .links { margin-top: 6px; }
-
-/* Zhihu: hot-list vibe — heat badge, compact */
-.story-zhihu .story-body { padding: 12px 16px; }
-.story-zhihu .title { font-size: 16px; }
-.story-zhihu time { display: none; }
-.story-zhihu .meta .dot { display: none; }
-
-/* Reuters: image-forward, larger hero image since no summary */
-.story-reuters .media img { height: 210px; }
-.story-reuters .summary { display: none; }
-.story-reuters .story-body { padding: 11px 16px 13px; }
-
-/* Google News: hide the summary (it only repeats the publisher name,
-   which is already shown as a .publisher-badge). */
-.story-google .summary,
-.story-google_zh .summary { display: none; }
-
-/* Google News / WSJ / AP: publisher shown in meta */
-.story-google .meta,
-.story-google_zh .meta,
-.story-wsj .meta,
-.story-ap .meta {
-  font-size: 11px;
-}
-
-/* RSS / Atom with images: slightly taller image */
-.story-economist .media img,
-.story-bloomberg .media img,
-.story-atlantic .media img,
-.story-newyorker .media img,
-.story-mit_tech .media img { height: 180px; }
 
 .empty {
   padding: 40px 20px;
