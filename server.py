@@ -461,6 +461,59 @@ def _call_translation_api_stream(prompt):
     raise RuntimeError("翻译 API 未配置：请设置 DEEPSEEK_API_KEY 或 Claude DeepSeek 配置")
 
 
+def _build_summary_prompt(items):
+    """Build a prompt asking the AI to summarize a day's news."""
+    groups = {}
+    for item in items:
+        source = item.get("source", "unknown")
+        title = item.get("title", "")
+        summary = item.get("summary", "")
+        if not title:
+            continue
+        groups.setdefault(source, []).append((title, summary))
+
+    lines = []
+    for source, entries in groups.items():
+        label = SOURCES.get(source, {}).get("label", source)
+        lines.append(f"\n【{label}】")
+        for title, summary in entries[:20]:  # cap per source
+            line = f"  - {title}"
+            if summary:
+                line += f"（{summary[:80]}）"
+            lines.append(line)
+
+    numbered = "\n".join(lines)
+    today_str = datetime.now(timezone.utc).strftime("%Y年%m月%d日")
+    return (
+        f"你是一个专业新闻编辑。以下是{today_str}前后全球新闻标题汇总。"
+        f"请用中文写一个简短的今日要闻总结（300字以内），涵盖最重要的主题、趋势和值得关注的事件。"
+        f"不要逐条罗列，而是提炼要点，像新闻简报一样自然流畅。\n\n"
+        + numbered
+    )
+
+
+def summary_events(items):
+    """Stream AI-generated daily news summary for the given items."""
+    if not items:
+        yield {"type": "error", "message": "没有可总结的内容"}
+        return
+
+    prompt = _build_summary_prompt(items)
+    yield {"type": "start"}
+
+    try:
+        buffer = ""
+        for chunk in _call_translation_api_stream(prompt):
+            buffer += chunk
+            yield {"type": "chunk", "text": chunk}
+
+        yield {"type": "done", "text": buffer}
+    except Exception as exc:
+        yield {"type": "error", "message": str(exc)}
+
+    yield {"type": "complete"}
+
+
 def translation_events(items):
     candidates = []
     for item in items[:50]:
@@ -1214,6 +1267,27 @@ def create_flask_app():
             headers=api_headers(stream=True),
         )
 
+    @flask_app.post("/api/summary")
+    def flask_summary():
+        if (request.content_length or 0) > 2_000_000:
+            return json_response({"error": "request too large"}, status=413)
+
+        payload = request.get_json(silent=True) or {}
+        items = payload.get("items", [])
+        if not isinstance(items, list):
+            return json_response({"error": "Invalid items"}, status=400)
+
+        def generate():
+            clean_items = [item for item in items if isinstance(item, dict)]
+            for event in summary_events(clean_items):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
+
+        return Response(
+            stream_with_context(generate()),
+            content_type="application/x-ndjson; charset=utf-8",
+            headers=api_headers(stream=True),
+        )
+
     @flask_app.get("/")
     def flask_index():
         return serve_public_file("index.html")
@@ -1270,6 +1344,9 @@ class Handler(BaseHTTPRequestHandler):
         parsed = urllib.parse.urlparse(self.path)
         if parsed.path == "/api/translate":
             self.handle_translate()
+            return
+        if parsed.path == "/api/summary":
+            self.handle_summary()
             return
         self.send_error(404)
 
@@ -1344,6 +1421,39 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
 
         for event in translation_events([item for item in items if isinstance(item, dict)]):
+            line = json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n"
+            self.wfile.write(line)
+            self.wfile.flush()
+
+    def handle_summary(self):
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = 0
+        if length > 2_000_000:
+            self.send_error(413)
+            return
+
+        try:
+            raw = self.rfile.read(length) if length else b"{}"
+            payload = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self.send_error(400, "Invalid JSON")
+            return
+
+        items = payload.get("items", [])
+        if not isinstance(items, list):
+            self.send_error(400, "Invalid items")
+            return
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/x-ndjson; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("X-Accel-Buffering", "no")
+        self.end_headers()
+
+        for event in summary_events([item for item in items if isinstance(item, dict)]):
             line = json.dumps(event, ensure_ascii=False).encode("utf-8") + b"\n"
             self.wfile.write(line)
             self.wfile.flush()

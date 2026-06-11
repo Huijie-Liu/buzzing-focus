@@ -791,6 +791,131 @@ async function loadFeed() {
 
 els.theme.addEventListener("click", () => setTheme(state.theme === "dark" ? "light" : "dark"));
 
+/* ------------------------------------------------------------------ *
+ *  AI 今日要闻总结
+ * ------------------------------------------------------------------ */
+
+const summaryButton = document.querySelector("#summaryButton");
+let summaryAborter = null;
+let summaryModal = null;
+
+function buildSummaryPayload() {
+  return state.items.map((item) => ({
+    source: item.source,
+    title: item.titleOriginal || item.title || "",
+    summary: item.summaryOriginal || item.summary || "",
+  }));
+}
+
+function removeSummaryModal() {
+  if (summaryAborter) {
+    summaryAborter.abort();
+    summaryAborter = null;
+  }
+  if (summaryModal) {
+    summaryModal.remove();
+    summaryModal = null;
+  }
+}
+
+function showSummaryModal() {
+  removeSummaryModal();
+
+  summaryModal = document.createElement("div");
+  summaryModal.className = "summary-overlay";
+  summaryModal.innerHTML = `
+    <div class="summary-card">
+      <div class="summary-card-header">
+        <span>✨ AI 今日要闻总结</span>
+        <button class="summary-close" type="button" aria-label="关闭">✕</button>
+      </div>
+      <div class="summary-card-body">
+        <div class="summary-loading">
+          <span class="summary-spinner"></span>
+          <span>正在生成总结...</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  summaryModal.querySelector(".summary-close").addEventListener("click", removeSummaryModal);
+  summaryModal.addEventListener("click", (e) => {
+    if (e.target === summaryModal) removeSummaryModal();
+  });
+
+  document.body.appendChild(summaryModal);
+
+  const body = summaryModal.querySelector(".summary-card-body");
+  const payload = buildSummaryPayload();
+
+  if (!payload.length) {
+    body.innerHTML = '<div class="summary-text">当前没有可总结的内容。</div>';
+    return;
+  }
+
+  summaryAborter = new AbortController();
+
+  fetch("/api/summary", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items: payload }),
+    signal: summaryAborter.signal,
+  })
+    .then(async (response) => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      if (!response.body) throw new Error("浏览器不支持流式响应");
+
+      // Replace loading with content area
+      body.innerHTML = '<div class="summary-text"></div>';
+      const textEl = body.querySelector(".summary-text");
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const event = JSON.parse(line);
+            if (event.type === "chunk") {
+              textEl.textContent += event.text;
+              body.scrollTop = body.scrollHeight;
+            } else if (event.type === "done") {
+              textEl.textContent = event.text || textEl.textContent;
+            } else if (event.type === "error") {
+              textEl.textContent = `总结生成失败：${event.message}`;
+            }
+          } catch { /* skip malformed */ }
+        }
+
+        if (done) break;
+      }
+
+      if (!textEl.textContent.trim()) {
+        textEl.textContent = "总结生成失败，请稍后重试。";
+      }
+    })
+    .catch((error) => {
+      if (error.name !== "AbortError") {
+        body.innerHTML = `<div class="summary-text">请求失败：${error.message}</div>`;
+      }
+    });
+}
+
+summaryButton.addEventListener("click", showSummaryModal);
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && summaryModal) {
+    removeSummaryModal();
+  }
+});
+
 // Scrolling now happens inside the per-column lists (vertical) and the
 // board itself (horizontal), never on window. scroll events don't bubble
 // but do reach the capture phase, so a single capturing listener on the
