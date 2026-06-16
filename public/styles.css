@@ -907,37 +907,6 @@ h1 {
   font-size: 14px;
 }
 
-.empty {
-  padding: 40px 20px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 7px;
-  color: var(--muted);
-  text-align: center;
-  font-size: 15px;
-}
-
-.skeleton {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-  padding: 14px 16px;
-  border: 1px solid var(--line);
-  border-radius: 7px;
-  background: var(--panel);
-  animation: fade-up 0.3s ease both;
-
-  .bar {
-    height: 14px;
-    border-radius: 4px;
-    background: var(--soft);
-    animation: skeleton-pulse 1.8s ease-in-out infinite;
-
-    &.title   { width: 78%; height: 20px; margin-bottom: 4px; }
-    &.summary { width: 92%; margin-top: 4px; }
-    &.meta    { width: 35%; height: 11px; }
-  }
-}
-
 /* ---- Preview popup (hover to show original EN) ---- */
 
 .preview-popup {

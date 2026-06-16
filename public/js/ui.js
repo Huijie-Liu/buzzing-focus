@@ -283,25 +283,10 @@ function findArticleNode(id) {
 // Rendering: Columns & skeletons
 // =========================================================================
 
-function renderSkeleton(count = 4) {
-  const frag = document.createDocumentFragment();
-  for (let i = 0; i < count; i++) {
-    const skel = document.createElement("div");
-    skel.className = "skeleton";
-    skel.style.animationDelay = `${i * 0.05}s`;
-    skel.innerHTML = '<div class="bar meta"></div><div class="bar title"></div><div class="bar summary"></div>';
-    frag.appendChild(skel);
-  }
-  return frag;
-}
-
 function renderColumnBody(column) {
-  if (state.loading && !column.items.length) return renderSkeleton();
   if (!column.items.length) {
-    const empty = document.createElement("div");
-    empty.className = "empty";
-    empty.textContent = "暂无内容";
-    return empty;
+    const frag = document.createDocumentFragment();
+    return frag;
   }
   const frag = document.createDocumentFragment();
   column.items.forEach((item) => frag.append(renderArticle(item)));
