@@ -154,28 +154,17 @@ h1 {
   background: var(--topbar-bg);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
-  transition: padding 0.35s ease;
   padding: 0;
 
-  /* Inner wrapper — takes over flex layout so we can collapse it */
+  /* Inner wrapper */
   .topbar-body {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
     padding: 10px clamp(14px, 3vw, 40px);
-    overflow: hidden;
-    max-height: 200px;
-    opacity: 1;
-    transition: max-height 0.35s ease, opacity 0.28s ease, padding 0.35s ease;
   }
 
-  &.topbar-collapsed .topbar-body {
-    max-height: 0;
-    opacity: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-  }
 }
 
 .brand {
@@ -202,15 +191,6 @@ h1 {
   min-width: 0;
 }
 
-/* On wider screens, always show the topbar (ignore collapsed state from mobile scroll) */
-@media (min-width: 821px) {
-  .topbar.topbar-collapsed .topbar-body {
-    max-height: 200px;
-    opacity: 1;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-}
 
 /* =========================================================================
    5. LAYOUT: SHELL & FEED BOARD
@@ -1039,7 +1019,6 @@ h1 {
   .story-body { padding: 12px 16px; }
   time        { display: none; }
   .meta .dot  { display: none; }
-  .summary    { display: none; }
 
   .card-stats {
     display: flex;
