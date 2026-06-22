@@ -13,11 +13,13 @@ export const SOURCE_GROUPS = [
 export const SOURCES = [
   { key: "reuters",    label: "路透社",       accent: "#ff8000", group: "news" },
   { key: "bloomberg",  label: "彭博社",       accent: "#0068ff", group: "news" },
+  { key: "linux_do",   label: "LINUX DO",     accent: "#0088cc", group: "news" },
   { key: "guardian",   label: "卫报",         accent: "#052962", group: "news" },
   { key: "bbc",        label: "BBC",          accent: "#b80000", group: "news" },
   { key: "washingtonpost", label: "华盛顿邮报", accent: "#1a1a1a", group: "news" },
   { key: "zhihu",      label: "知乎热榜",     accent: "#0066ff", group: "hot" },
   { key: "hn",         label: "Hacker News",  accent: "#f0652f", group: "hot" },
+  { key: "linux_do_top", label: "LINUX DO 热榜", accent: "#0a8ed6", group: "hot" },
   { key: "google",     label: "Google News 美国", accent: "#1a73e8", group: "hot" },
   { key: "google_zh",  label: "Google News 中国", accent: "#34a853", group: "hot" },
   { key: "economist",  label: "经济学人",     accent: "#d71920", group: "analysis" },
@@ -144,7 +146,7 @@ export function escapeHtml(str) {
 
 // Sources that are already ranked by the server (e.g. HN top stories,
 // Zhihu hot list) — preserve the server order instead of sorting by time.
-const RANKED_SOURCES = new Set(["hn", "zhihu", "google", "google_zh"]);
+const RANKED_SOURCES = new Set(["hn", "zhihu", "google", "google_zh", "linux_do_top"]);
 
 /** One entry per source in the active group.  Ranked sources keep
  *  server order; the rest are sorted newest-first. */

@@ -55,6 +55,7 @@ REQUEST_HEADERS = {
 NS = {
     "atom": "http://www.w3.org/2005/Atom",
     "dc": "http://purl.org/dc/elements/1.1/",
+    "discourse": "http://www.discourse.org/",
     "image": "http://www.google.com/schemas/sitemap-image/1.1",
     "media": "http://search.yahoo.com/mrss/",
     "news": "http://www.google.com/schemas/sitemap-news/0.9",
@@ -234,6 +235,32 @@ SOURCES = {
             "https://feeds.washingtonpost.com/rss/politics",
             "https://feeds.washingtonpost.com/rss/technology",
         ],
+    },
+    "linux_do": {
+        "label": "LINUX DO",
+        "short": "LINUX DO",
+        "kind": "discourse",
+        "home": "https://linux.do/new",
+        "accent": "#0088cc",
+        "story_limit": 30,
+        "feeds": ["https://linux.do/latest.rss"],
+        "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        },
+    },
+    "linux_do_top": {
+        "label": "LINUX DO 热榜",
+        "short": "LINUX DO 热榜",
+        "kind": "discourse",
+        "home": "https://linux.do/top",
+        "accent": "#0a8ed6",
+        "story_limit": 30,
+        "feeds": ["https://linux.do/top/daily.rss"],
+        "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+        },
     },
 }
 
@@ -769,8 +796,10 @@ def normalize_date(value):
     return parsed.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
-def fetch_url(url, accept):
+def fetch_url(url, accept, extra_headers=None):
     headers = dict(REQUEST_HEADERS)
+    if extra_headers:
+        headers.update(extra_headers)
     headers["Accept"] = accept
     request = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(request, timeout=18) as response:
@@ -1033,6 +1062,51 @@ def is_localized_reuters_url(url):
     return parsed.path.startswith(LOCALIZED_REUTERS_PREFIXES)
 
 
+DISCOURSE_NOISE_RE = re.compile(
+    r"\s*\d+\s+(?:个帖子|posts?)\s*-\s*\d+\s+(?:位参与者|participants?)\s+"
+    r"(?:阅读完整话题|Read full topic)\s*$",
+    re.IGNORECASE,
+)
+
+
+def parse_discourse(source_key, meta, raw):
+    root = ET.fromstring(raw)
+    channel = root.find("channel")
+    if channel is None:
+        return [], ""
+    latest = child_text(channel, "lastBuildDate") or child_text(channel, "pubDate")
+    items = []
+    for item in channel.findall("item"):
+        pinned = child_text(item, "discourse:topicPinned", NS).strip().lower()
+        if pinned == "yes":
+            continue
+        title = child_text(item, "title")
+        link = child_text(item, "link")
+        if not title or not link:
+            continue
+        desc_elem = item.find("description")
+        raw_desc = desc_elem.text if desc_elem is not None else ""
+        img = ""
+        if raw_desc:
+            m = re.search(r'<img[^>]+src="([^"]+)"', raw_desc)
+            if m:
+                img = m.group(1)
+        summary = DISCOURSE_NOISE_RE.sub("", clean_html(raw_desc)).strip()
+        items.append(
+            make_item(
+                source_key,
+                meta,
+                title=title,
+                url=link,
+                summary=summary,
+                image=img,
+                published_at=child_text(item, "pubDate"),
+                item_id=child_text(item, "guid") or link,
+            )
+        )
+    return items, latest
+
+
 def parse_reuters_sitemap(source_key, meta, raw):
     root = ET.fromstring(raw)
     items = []
@@ -1067,13 +1141,14 @@ def parse_reuters_sitemap(source_key, meta, raw):
 def fetch_feed_collection(source_key, parser):
     meta = SOURCES[source_key]
     feeds = meta["feeds"]
+    extra_headers = meta.get("headers")
     latest_values = []
     errors = []
     feed_results = []
 
     with ThreadPoolExecutor(max_workers=min(8, len(feeds))) as pool:
         jobs = {
-            pool.submit(fetch_url, url, "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9"): (idx, url)
+            pool.submit(fetch_url, url, "application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9", extra_headers): (idx, url)
             for idx, url in enumerate(feeds)
         }
         for job in as_completed(jobs):
@@ -1210,6 +1285,8 @@ def fetch_source(source_key):
         payload = fetch_feed_collection(source_key, parse_google_rss)
     elif kind == "atom":
         payload = fetch_feed_collection(source_key, parse_atom)
+    elif kind == "discourse":
+        payload = fetch_feed_collection(source_key, parse_discourse)
     elif kind == "reuters_sitemap":
         payload = fetch_feed_collection(source_key, parse_reuters_sitemap)
     else:

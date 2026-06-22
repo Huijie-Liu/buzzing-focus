@@ -11,6 +11,7 @@ from server import (
     parse_atom,
     parse_google_rss,
     parse_reuters_sitemap,
+    parse_discourse,
     zhihu_item_url,
     normalize_date,
     upscale_image_url,
@@ -135,6 +136,71 @@ class ParseReutersSitemapTests(unittest.TestCase):
         self.assertEqual(len(items), 1)
         self.assertEqual(items[0]["title"], "An article")
         self.assertTrue(latest)
+
+
+class ParseDiscourseTests(unittest.TestCase):
+    def test_parses_discourse_rss_with_image_and_strips_noise(self):
+        meta = SOURCES["linux_do"]
+        raw = b"""<?xml version="1.0"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:discourse="http://www.discourse.org/">
+  <channel>
+    <title>LINUX DO</title>
+    <lastBuildDate>Mon, 22 Jun 2026 00:23:16 +0000</lastBuildDate>
+    <item>
+      <title>Pinned announcement</title>
+      <link>https://linux.do/t/topic/100</link>
+      <discourse:topicPinned>Yes</discourse:topicPinned>
+      <pubDate>Mon, 22 Jun 2026 00:00:00 +0000</pubDate>
+      <guid>linux.do-topic-100</guid>
+    </item>
+    <item>
+      <title>Test topic</title>
+      <link>https://linux.do/t/topic/2445150</link>
+      <dc:creator><![CDATA[someone]]></dc:creator>
+      <discourse:topicPinned>No</discourse:topicPinned>
+      <description><![CDATA[<p>Hello world</p><div class="lightbox-wrapper"><a class="lightbox" href="https://cdn3.ldstatic.com/original/4X/a.jpeg"><img src="https://cdn3.ldstatic.com/optimized/4X/a_2_689x435.jpeg" alt="image"></a></div><p><small>1 \xe4\xb8\xaa\xe5\xb8\x96\xe5\xad\x90 - 1 \xe4\xbd\x8d\xe5\x8f\x82\xe4\xb8\x8e\xe8\x80\x85</small></p><p><a href="https://linux.do/t/topic/2445150">\xe9\x98\x85\xe8\xaf\xbb\xe5\xae\x8c\xe6\x95\xb4\xe8\xaf\x9d\xe9\xa2\x98</a></p>]]></description>
+      <pubDate>Mon, 22 Jun 2026 00:23:16 +0000</pubDate>
+      <guid>linux.do-topic-2445150</guid>
+    </item>
+    <item>
+      <title>No description</title>
+      <link>https://linux.do/t/topic/999</link>
+      <pubDate>Mon, 22 Jun 2026 00:00:00 +0000</pubDate>
+      <guid>linux.do-topic-999</guid>
+    </item>
+    <item>
+      <title>English noise</title>
+      <link>https://linux.do/t/topic/888</link>
+      <description><![CDATA[<p>Some content</p><p><small>3 posts - 3 participants</small></p><p><a href="https://linux.do/t/topic/888">Read full topic</a></p>]]></description>
+      <pubDate>Mon, 22 Jun 2026 00:00:00 +0000</pubDate>
+      <guid>linux.do-topic-888</guid>
+    </item>
+  </channel>
+</rss>"""
+        items, latest = parse_discourse("linux_do", meta, raw)
+        self.assertEqual(len(items), 3)
+        self.assertTrue(latest)
+
+        first = items[0]
+        self.assertEqual(first["title"], "Test topic")
+        self.assertEqual(first["url"], "https://linux.do/t/topic/2445150")
+        self.assertIn("optimized/4X/a_2_689x435.jpeg", first["image"])
+        self.assertIn("Hello world", first["summary"])
+        self.assertNotIn("\u9605\u8bfb\u5b8c\u6574\u8bdd\u9898", first["summary"])
+        self.assertNotIn("\u4e2a\u5e16\u5b50", first["summary"])
+
+        second = items[1]
+        self.assertEqual(second["title"], "No description")
+        self.assertEqual(second["image"], "")
+
+        third = items[2]
+        self.assertEqual(third["title"], "English noise")
+        self.assertIn("Some content", third["summary"])
+        self.assertNotIn("Read full topic", third["summary"])
+        self.assertNotIn("participants", third["summary"])
+
+        titles = [it["title"] for it in items]
+        self.assertNotIn("Pinned announcement", titles)
 
 
 class ZhihuHelperTests(unittest.TestCase):
