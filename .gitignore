@@ -17,3 +17,5 @@ venv/
 
 # Deployment metadata
 .vercel/
+.vercel
+.env*

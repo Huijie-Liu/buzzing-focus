@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import hashlib
 import html
 import ipaddress
 import json
@@ -520,15 +519,8 @@ _deepseek_client = openai.OpenAI(
 
 
 # =========================================================================
-# DeepLX translation (titles + summaries for non-Chinese sources)
+# Translation (titles + summaries for non-Chinese sources) via DeepSeek
 # =========================================================================
-
-DEEPLX_TOKEN = os.environ.get("DEEPLX_TOKEN", "")
-DEEPLX_BASE_URL = os.environ.get(
-    "DEEPLX_BASE_URL", "https://api.deeplx.org"
-).rstrip("/")
-TRANSLATE_CACHE_TTL = 7 * 24 * 3600  # translations are stable; cache for a week
-TRANSLATE_CACHE = TTLLRU(TRANSLATE_CACHE_TTL, 5000)
 
 # Sources whose content is already Chinese — skip translation entirely.
 NON_TRANSLATABLE_SOURCES = {"zhihu", "google_zh", "linux_do", "linux_do_top"}
@@ -541,61 +533,53 @@ SUMMARY_TRANSLATABLE_SOURCES = {
 }
 
 
+def ai_translation_available():
+    """True when at least one DeepSeek backend is configured."""
+    return _deepseek_client is not None or bool(CLAUDE_DEEPSEEK.get("token"))
+
+
 def should_translate_source(source_key):
-    return DEEPLX_TOKEN and source_key not in NON_TRANSLATABLE_SOURCES
+    return ai_translation_available() and source_key not in NON_TRANSLATABLE_SOURCES
 
 
 def should_translate_summary(source_key):
     return source_key in SUMMARY_TRANSLATABLE_SOURCES
 
 
-def deeplx_translate(text_value, target_lang="ZH"):
-    """Translate *text_value* via DeepLX. Returns the original on any failure
-    (missing token, network error, upstream non-200) so the feed degrades
-    gracefully to English. Results are cached by text hash for a week."""
-    if not text_value or not DEEPLX_TOKEN:
-        return text_value
-    cache_key = hashlib.sha256(
-        f"{target_lang}\x00{text_value}".encode("utf-8")
-    ).hexdigest()
-    now = time.time()
-    cached = TRANSLATE_CACHE.get(cache_key, now)
-    if cached is not None:
-        return cached
+def _parse_translation_json(text):
+    """Extract a dict of {index: translated_text} from the AI response.
+
+    The model is asked to return ``{"0":"...","1":"...",...}`` but may wrap
+    it in markdown fences or prefix it with prose, so we try several
+    extraction strategies before giving up."""
+    if not text:
+        return {}
+    text = text.strip()
     try:
-        payload = json.dumps(
-            {"text": text_value, "target_lang": target_lang},
-            ensure_ascii=False,
-        ).encode("utf-8")
-        req = urllib.request.Request(
-            f"{DEEPLX_BASE_URL}/{DEEPLX_TOKEN}/translate",
-            data=payload,
-            headers={
-                "Content-Type": "application/json",
-                # Cloudflare blocks the default Python-urllib UA (403 code 1010).
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                              "AppleWebKit/537.36 (KHTML, like Gecko) "
-                              "Chrome/131.0.0.0 Safari/537.36",
-            },
-            method="POST",
-        )
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            data = json.loads(resp.read().decode("utf-8", "replace"))
-        if data.get("code") == 200:
-            result = (data.get("data") or "").strip()
-            if result:
-                TRANSLATE_CACHE.set(cache_key, result, now)
-                return result
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError,
-            json.JSONDecodeError):
+        return json.loads(text)
+    except json.JSONDecodeError:
         pass
-    return text_value
+    m = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if m:
+        try:
+            return json.loads(m.group(1))
+        except json.JSONDecodeError:
+            pass
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        try:
+            return json.loads(text[start:end + 1])
+        except json.JSONDecodeError:
+            pass
+    return {}
 
 
 def translate_items(items, source_key, event_q=None):
     """Translate titles (and summaries where meaningful) for non-Chinese
-    sources. Originals are preserved as ``titleOriginal`` / ``summaryOriginal``
-    for client-side hover display. Translates in place; returns *items*.
+    sources using DeepSeek batch translation. Originals are preserved as
+    ``titleOriginal`` / ``summaryOriginal`` for client-side hover display.
+    Translates in place; returns *items*.
 
     If *event_q* is provided, a ``("translate", source_key, item_id, field,
     result)`` tuple is put on the queue for each translated field, enabling
@@ -604,29 +588,56 @@ def translate_items(items, source_key, event_q=None):
     Chinese text is never re-translated."""
     if not should_translate_source(source_key) or not items:
         return items
+
     do_summary = should_translate_summary(source_key)
-    jobs = {}
-    with ThreadPoolExecutor(max_workers=min(8, len(items))) as pool:
-        for item in items:
-            if not item.get("titleOriginal"):
-                title = item.get("title") or ""
-                if title:
-                    jobs[pool.submit(deeplx_translate, title)] = ("title", item)
-            if do_summary and not item.get("summaryOriginal"):
-                summary = item.get("summary") or ""
-                if summary:
-                    jobs[pool.submit(deeplx_translate, summary)] = ("summary", item)
-        for future in as_completed(jobs):
-            field, item = jobs[future]
-            try:
-                result = future.result()
-            except Exception:
-                continue
-            if result and result != item.get(field):
-                item[f"{field}Original"] = item[field]
-                item[field] = result
-                if event_q is not None:
-                    event_q.put(("translate", source_key, item["id"], field, result))
+
+    # Collect (item, field, original_text) tuples for every field that still
+    # needs translating.  Already-translated items (from a warm cache) are
+    # skipped.
+    jobs = []
+    for item in items:
+        if not item.get("titleOriginal"):
+            title = item.get("title") or ""
+            if title:
+                jobs.append((item, "title", title))
+        if do_summary and not item.get("summaryOriginal"):
+            summary = item.get("summary") or ""
+            if summary:
+                jobs.append((item, "summary", summary))
+
+    if not jobs:
+        return items
+
+    # Build a single batch prompt: numbered inputs -> JSON output.
+    numbered = [f"[{i}] {original}" for i, (_, _, original) in enumerate(jobs)]
+    prompt = (
+        "将以下英文新闻标题和摘要翻译为简体中文，保持简洁准确的新闻风格。"
+        "人名、机构名、专有名词保留原文或使用常见中文译名。\n"
+        "输出 JSON 对象，key 为编号字符串，value 为译文。\n"
+        "不要输出任何多余内容，只输出 JSON。\n\n"
+        + "\n".join(numbered)
+        + '\n\n输出格式：{"0":"译文","1":"译文",...}'
+    )
+
+    try:
+        full_text = "".join(_call_ai_api_stream(prompt))
+        translations = _parse_translation_json(full_text)
+    except Exception:
+        return items
+
+    if not isinstance(translations, dict) or not translations:
+        return items
+
+    for i, (item, field, original) in enumerate(jobs):
+        translated = translations.get(str(i), "")
+        if not isinstance(translated, str):
+            translated = str(translated)
+        translated = translated.strip()
+        if translated and translated != original:
+            item[f"{field}Original"] = item[field]
+            item[field] = translated
+            if event_q is not None:
+                event_q.put(("translate", source_key, item["id"], field, translated))
     return items
 
 
@@ -1599,8 +1610,7 @@ def create_flask_app():
             "model": AI_MODEL,
             "has_openai": openai is not None,
             "_deepseek_client": bool(_deepseek_client),
-            "has_deeplx_token": bool(DEEPLX_TOKEN),
-            "deeplx_base_url": DEEPLX_BASE_URL,
+            "ai_translation_available": ai_translation_available(),
         })
 
     @flask_app.after_request
