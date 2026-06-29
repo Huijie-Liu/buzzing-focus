@@ -1,6 +1,6 @@
 # Buzzing Focus
 
-一个聚合多源新闻的网页应用。
+一个聚合多源新闻的网页应用，支持 AI 翻译与要闻总结。
 
 ## 本地运行
 
@@ -32,14 +32,18 @@ python -m unittest discover -s tests
 DEEPSEEK_API_KEY=your_api_key
 DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
 DEEPSEEK_MODEL=deepseek-chat
-DEEPLX_TOKEN=your_deeplx_token
 ```
 
-- **DeepSeek** 驱动 `/api/summary` 的 AI 要闻总结。
-- **DeepLX** 翻译非中文新闻的标题和摘要为中文（token 在
-  [connect.linux.do](https://connect.linux.do) 获取）。未设置时 feed 保持原文。
+- **DeepSeek** 驱动 `/api/summary` 的 AI 要闻总结，以及 `/api/translate` 的标题/摘要翻译。
+  未设置时，feed 保持原文，总结接口不可用。
+- 可选：读取 `~/.claude/settings.local.json` 中的 `ANTHROPIC_BASE_URL` /
+  `ANTHROPIC_AUTH_TOKEN`（指向 DeepSeek 的兼容端点）作为备用配置。
 
 `public/` 中的文件会作为静态资源发布，后端接口由 Flask app 提供：
 
-- `GET /api/feed`
-- `GET /api/preview`
+- `GET  /api/feed` — 流式 NDJSON，逐源推送新闻卡片
+- `GET  /api/preview?url=` — 抓取文章摘要预览
+- `GET  /api/preview-image?url=` — 抓取文章 og:image
+- `POST /api/translate` — 流式翻译可见卡片的标题/摘要
+- `POST /api/summary` — 流式生成 AI 要闻简报
+- `GET  /api/debug` — 本地默认开启，生产需 `ENABLE_DEBUG=1`

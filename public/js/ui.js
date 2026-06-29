@@ -256,8 +256,28 @@ function buildSourceFeatures(node, item, sourceKey, mainUrl, links) {
 // Lazy preview images (og:image)
 // =========================================================================
 
-// Cache — avoid re-fetching the same article URL
+// Cache — avoid re-fetching the same article URL.  Capped so long browsing
+// sessions don't let the Map grow without bound; evict oldest entries.
+const LAZY_IMAGE_CACHE_MAX = 200;
 const lazyImageCache = new Map();
+
+function lazyImageCacheGet(key) {
+  if (!lazyImageCache.has(key)) return undefined;
+  const value = lazyImageCache.get(key);
+  // Move to end (most-recently used).
+  lazyImageCache.delete(key);
+  lazyImageCache.set(key, value);
+  return value;
+}
+
+function lazyImageCacheSet(key, value) {
+  if (lazyImageCache.has(key)) lazyImageCache.delete(key);
+  lazyImageCache.set(key, value);
+  while (lazyImageCache.size > LAZY_IMAGE_CACHE_MAX) {
+    const oldest = lazyImageCache.keys().next().value;
+    lazyImageCache.delete(oldest);
+  }
+}
 
 // IntersectionObserver: loads og:image when a card nears the viewport
 let lazyImageObserver = null;
@@ -277,11 +297,10 @@ function ensureLazyImageObserver() {
 }
 
 function scheduleLazyImage(node, articleUrl) {
-  if (!articleUrl || lazyImageCache.has(articleUrl)) {
-    if (lazyImageCache.has(articleUrl)) {
-      const cached = lazyImageCache.get(articleUrl);
-      if (cached) applyLazyImage(node, cached);
-    }
+  if (!articleUrl) return;
+  const cached = lazyImageCacheGet(articleUrl);
+  if (cached !== undefined) {
+    if (cached) applyLazyImage(node, cached);
     return;
   }
   ensureLazyImageObserver();
@@ -290,20 +309,20 @@ function scheduleLazyImage(node, articleUrl) {
 }
 
 async function loadLazyImage(node, articleUrl) {
-  if (lazyImageCache.has(articleUrl)) {
-    const cached = lazyImageCache.get(articleUrl);
+  const cached = lazyImageCacheGet(articleUrl);
+  if (cached !== undefined) {
     if (cached) applyLazyImage(node, cached);
     return;
   }
   try {
     const resp = await fetch(`/api/preview-image?url=${encodeURIComponent(articleUrl)}`);
-    if (!resp.ok) { lazyImageCache.set(articleUrl, null); return; }
+    if (!resp.ok) { lazyImageCacheSet(articleUrl, null); return; }
     const data = await resp.json();
     const img = data.image || "";
-    lazyImageCache.set(articleUrl, img || null);
+    lazyImageCacheSet(articleUrl, img || null);
     if (img) applyLazyImage(node, img);
   } catch {
-    lazyImageCache.set(articleUrl, null);
+    lazyImageCacheSet(articleUrl, null);
   }
 }
 
@@ -404,10 +423,6 @@ function observeCardsForTranslation() {
 // =========================================================================
 
 function renderColumnBody(column) {
-  if (!column.items.length) {
-    const frag = document.createDocumentFragment();
-    return frag;
-  }
   const frag = document.createDocumentFragment();
   column.items.forEach((item) => frag.append(renderArticle(item)));
   return frag;

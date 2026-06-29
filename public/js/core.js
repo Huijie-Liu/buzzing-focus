@@ -104,7 +104,13 @@ export function sourceCount(sourceKey) {
 }
 
 // Sources whose content is already Chinese — skip translation.
-const NON_TRANSLATABLE_SOURCES = new Set(["zhihu", "google_zh", "linux_do", "linux_do_top"]);
+// Read from the config injected in index.html (kept in sync with
+// NON_TRANSLATABLE_SOURCES in server.py); fall back to a hardcoded list
+// so a missing config never breaks the page.
+const _cfg = (window.__BUZZING_CONFIG__ || {});
+const NON_TRANSLATABLE_SOURCES = new Set(
+  _cfg.nonTranslatableSources || ["zhihu", "google_zh", "linux_do", "linux_do_top"]
+);
 
 export function shouldTranslateSource(sourceKey) {
   return !NON_TRANSLATABLE_SOURCES.has(sourceKey);

@@ -579,5 +579,77 @@ class TranslateItemsTests(unittest.TestCase):
         self.assertGreater(call_count[0], 1)
 
 
+class RunTranslationJobsTests(unittest.TestCase):
+    """Cover the shared _run_translation_jobs helper used by both
+    translate_items and translate_events."""
+
+    def setUp(self):
+        import server
+        self._old_available = server.ai_translation_available
+        server.ai_translation_available = lambda: True
+        self._old_call = server._call_ai_api_stream
+        server.TRANSLATION_CACHE._store.clear()
+
+    def tearDown(self):
+        import server
+        server.ai_translation_available = self._old_available
+        server._call_ai_api_stream = self._old_call
+        server.TRANSLATION_CACHE._store.clear()
+
+    def test_empty_jobs_returns_empty(self):
+        from server import _run_translation_jobs
+        self.assertEqual(_run_translation_jobs([]), {})
+
+    def test_cache_hit_skips_ai_call(self):
+        import server
+        from server import _run_translation_jobs
+        calls = []
+        server._call_ai_api_stream = lambda prompt, **kw: calls.append(prompt) or iter(
+            [json.dumps({"0": "你好"})]
+        )
+        jobs = [({"id": "a"}, "title", "Hello")]
+        self.assertEqual(_run_translation_jobs(jobs), {"0": "你好"})
+        self.assertEqual(len(calls), 1)
+        # Second call with same texts -> cache hit, no new AI call.
+        self.assertEqual(_run_translation_jobs(jobs), {"0": "你好"})
+        self.assertEqual(len(calls), 1)
+
+    def test_batch_fallback_on_truncated_json(self):
+        import server
+        from server import _run_translation_jobs
+        call_count = [0]
+
+        def mock_call(prompt, **kw):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return iter(['{"0":"译文0","1":"截断'])  # truncated
+            return iter(['{"0":"译文0"}'])
+
+        server._call_ai_api_stream = mock_call
+        jobs = [({"id": str(i)}, "title", f"Title {i}") for i in range(15)]
+        result = _run_translation_jobs(jobs)
+        self.assertEqual(result.get("0"), "译文0")
+        self.assertGreater(call_count[0], 1)
+
+
+class NonTranslatableSourcesSyncTests(unittest.TestCase):
+    """Ensure the frontend config in index.html matches server.py's
+    NON_TRANSLATABLE_SOURCES so the two never silently drift."""
+
+    def test_index_html_matches_server(self):
+        import re
+        from pathlib import Path
+        from server import NON_TRANSLATABLE_SOURCES
+        root = Path(__file__).resolve().parent.parent
+        html = (root / "public" / "index.html").read_text("utf-8")
+        m = re.search(
+            r"nonTranslatableSources\s*:\s*\[([^\]]*)\]",
+            html,
+        )
+        self.assertIsNotNone(m, "nonTranslatableSources not found in index.html")
+        ids = [s.strip().strip('"').strip("'") for s in m.group(1).split(",") if s.strip()]
+        self.assertEqual(set(ids), NON_TRANSLATABLE_SOURCES)
+
+
 if __name__ == "__main__":
     unittest.main()

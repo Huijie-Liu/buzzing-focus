@@ -15,6 +15,14 @@
     />
 
     <link rel="stylesheet" href="./styles.css" />
+
+    <!-- Runtime config injected for the frontend.  Keep in sync with
+         NON_TRANSLATABLE_SOURCES in server.py. -->
+    <script>
+      window.__BUZZING_CONFIG__ = {
+        nonTranslatableSources: ["zhihu", "google_zh", "linux_do", "linux_do_top"],
+      };
+    </script>
   </head>
   <body>
     <!-- ============================================================

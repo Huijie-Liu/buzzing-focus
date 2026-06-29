@@ -7,6 +7,7 @@ import os
 import re
 import socket
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -268,10 +269,10 @@ SOURCES = {
 
 LOCALIZED_REUTERS_PREFIXES = ("/es/", "/de/", "/fr/", "/pt/", "/ja/", "/zh-hans/")
 TAG_RE = re.compile(r"<[^>]+>")
-# Module-level feed cache. Read-check-write isn't atomic, so under heavy
-# concurrency a source may occasionally be fetched twice — acceptable at
-# this scale, and the TTL keeps duplicates cheap.
+# Module-level feed cache.  Guarded by ``_cache_lock`` so concurrent
+# fetches in the thread pool don't clobber each other's entries.
 _cache = {}
+_cache_lock = threading.Lock()
 
 
 # =========================================================================
@@ -309,31 +310,33 @@ class TTLLRU:
 class RateLimiter:
     """Sliding-window per-key limiter backed by an in-process dict.  Good
     enough to deter abuse on a single instance; state is not shared across
-    serverless replicas.  Not fully thread-safe — under heavy concurrency a
-    request may occasionally slip through, which is acceptable at this scale."""
+    serverless replicas.  Thread-safe via an internal lock so concurrent
+    requests in the thread pool can't drop updates."""
 
     def __init__(self, max_calls, period):
         self.max_calls = max_calls
         self.period = period
         self._hits: dict = {}
         self._sweep_at = 0.0
+        self._lock = threading.Lock()
 
     def allow(self, key, now=None):
         now = now if now is not None else time.time()
-        hits = [t for t in self._hits.get(key, []) if now - t < self.period]
-        blocked = len(hits) >= self.max_calls
-        if not blocked:
-            hits.append(now)
-        self._hits[key] = hits
-        # Sweep stale keys once per period so the dict can't grow unboundedly
-        # under low-rate traffic from many distinct clients.
-        if now >= self._sweep_at:
-            self._hits = {
-                k: v for k, v in self._hits.items()
-                if v and now - v[-1] < self.period
-            }
-            self._sweep_at = now + self.period
-        return not blocked
+        with self._lock:
+            hits = [t for t in self._hits.get(key, []) if now - t < self.period]
+            blocked = len(hits) >= self.max_calls
+            if not blocked:
+                hits.append(now)
+            self._hits[key] = hits
+            # Sweep stale keys once per period so the dict can't grow unboundedly
+            # under low-rate traffic from many distinct clients.
+            if now >= self._sweep_at:
+                self._hits = {
+                    k: v for k, v in self._hits.items()
+                    if v and now - v[-1] < self.period
+                }
+                self._sweep_at = now + self.period
+            return not blocked
 
 
 SUMMARY_LIMITER = RateLimiter(max_calls=5, period=60)
@@ -347,6 +350,10 @@ SUMMARY_MAX_ITEMS = 650
 # scrolling through several columns of cards.
 TRANSLATE_LIMITER = RateLimiter(max_calls=30, period=60)
 TRANSLATE_MAX_ITEMS = 100
+
+# Preview endpoints fetch arbitrary third-party pages on the server, so cap
+# per-IP to deter abuse (DoS amplification, scraping via the server).
+PREVIEW_LIMITER = RateLimiter(max_calls=30, period=60)
 
 
 # Networks the preview endpoints must never reach: RFC1918, loopback,
@@ -642,6 +649,40 @@ def _apply_translations(jobs, translations, source_key, event_q=None):
                 event_q.put(("translate", source_key, item["id"], field, translated))
 
 
+def _run_translation_jobs(jobs):
+    """Resolve translations for a list of (item, field, original) jobs.
+
+    Checks the translation cache first; on a miss performs a single batch
+    AI call, and if that returns nothing (truncated JSON) retries in
+    smaller chunks.  Returns ``{str(index): translated_text}`` or ``{}``
+    on failure.  Caches successful results."""
+    if not jobs:
+        return {}
+
+    cache_key = hashlib.sha256(
+        "\x00".join(original for _, _, original in jobs).encode("utf-8")
+    ).hexdigest()
+    now = time.time()
+    cached = TRANSLATION_CACHE.get(cache_key, now)
+    if cached is not None:
+        return cached
+
+    translations = _translate_batch(jobs, max_tokens=8192)
+
+    if not translations and len(jobs) > 10:
+        batch_size = 10
+        translations = {}
+        for start in range(0, len(jobs), batch_size):
+            batch = jobs[start:start + batch_size]
+            batch_result = _translate_batch(batch, max_tokens=8192)
+            for local_i, text in batch_result.items():
+                translations[str(start + int(local_i))] = text
+
+    if translations:
+        TRANSLATION_CACHE.set(cache_key, translations, now)
+    return translations
+
+
 def translate_items(items, source_key, event_q=None):
     """Translate titles (and summaries where meaningful) for non-Chinese
     sources using DeepSeek batch translation. Originals are preserved as
@@ -652,19 +693,12 @@ def translate_items(items, source_key, event_q=None):
     result)`` tuple is put on the queue for each translated field, enabling
     streaming updates to the client.  Items that already carry an
     ``*Original`` key (e.g. from a warmed cache) are skipped so cached
-    Chinese text is never re-translated.
-
-    A single batch call is attempted first for speed; if the response is
-    truncated or unparseable the batch is split into smaller chunks and
-    retried so a single failure does not lose the whole source."""
+    Chinese text is never re-translated."""
     if not should_translate_source(source_key) or not items:
         return items
 
     do_summary = should_translate_summary(source_key)
 
-    # Collect (item, field, original_text) tuples for every field that still
-    # needs translating.  Already-translated items (from a warm cache) are
-    # skipped.
     jobs = []
     for item in items:
         if not item.get("titleOriginal"):
@@ -679,35 +713,9 @@ def translate_items(items, source_key, event_q=None):
     if not jobs:
         return items
 
-    # Cache by the full set of texts being translated so unchanged
-    # headlines reuse the previous translation across cache cycles.
-    cache_key = hashlib.sha256(
-        "\x00".join(original for _, _, original in jobs).encode("utf-8")
-    ).hexdigest()
-    now = time.time()
-    cached = TRANSLATION_CACHE.get(cache_key, now)
-    if cached is not None:
-        _apply_translations(jobs, cached, source_key, event_q)
-        return items
-
-    # Single batch call for speed.
-    translations = _translate_batch(jobs, max_tokens=8192)
-
-    # If the batch was too large (truncated JSON), retry in smaller chunks.
-    if not translations and len(jobs) > 10:
-        batch_size = 10
-        translations = {}
-        for start in range(0, len(jobs), batch_size):
-            batch = jobs[start:start + batch_size]
-            batch_result = _translate_batch(batch, max_tokens=8192)
-            for local_i, text in batch_result.items():
-                translations[str(start + int(local_i))] = text
-
-    if not translations:
-        return items
-
-    TRANSLATION_CACHE.set(cache_key, translations, now)
-    _apply_translations(jobs, translations, source_key, event_q)
+    translations = _run_translation_jobs(jobs)
+    if translations:
+        _apply_translations(jobs, translations, source_key, event_q)
     return items
 
 
@@ -739,26 +747,7 @@ def translate_events(items_data, source_key):
         yield json.dumps({"type": "done"}, ensure_ascii=False)
         return
 
-    cache_key = hashlib.sha256(
-        "\x00".join(original for _, _, original in jobs).encode("utf-8")
-    ).hexdigest()
-    now = time.time()
-    cached = TRANSLATION_CACHE.get(cache_key, now)
-
-    if cached is not None:
-        translations = cached
-    else:
-        translations = _translate_batch(jobs, max_tokens=8192)
-        if not translations and len(jobs) > 10:
-            batch_size = 10
-            translations = {}
-            for start in range(0, len(jobs), batch_size):
-                batch = jobs[start:start + batch_size]
-                batch_result = _translate_batch(batch, max_tokens=8192)
-                for local_i, text in batch_result.items():
-                    translations[str(start + int(local_i))] = text
-        if translations:
-            TRANSLATION_CACHE.set(cache_key, translations, now)
+    translations = _run_translation_jobs(jobs)
 
     for i, (item, field, original) in enumerate(jobs):
         translated = translations.get(str(i), "")
@@ -825,7 +814,7 @@ def _call_ai_api_stream(prompt, *, system_prompt=TRANSLATION_SYSTEM_PROMPT, max_
         data_bytes = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         req = urllib.request.Request(url, data=data_bytes, headers=headers, method="POST")
         try:
-            with urllib.request.urlopen(req, timeout=120) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 for raw_line in resp:
                     line = raw_line.decode("utf-8", "replace").strip()
                     if not line or not line.startswith("data:"):
@@ -1073,7 +1062,9 @@ def fetch_url(url, accept, extra_headers=None):
         headers.update(extra_headers)
     headers["Accept"] = accept
     request = urllib.request.Request(url, headers=headers)
-    with urllib.request.urlopen(request, timeout=18) as response:
+    # Use the SSRF-safe opener so redirects to internal addresses are
+    # rejected even for feed fetches (defence in depth).
+    with _SAFE_OPENER.open(request, timeout=18) as response:
         return response.read()
 
 
@@ -1551,9 +1542,10 @@ def fetch_zhihu(source_key):
 
 def fetch_source(source_key):
     now = time.time()
-    cached = _cache.get(source_key)
-    if cached and now - cached["time"] < CACHE_SECONDS:
-        return cached["payload"]
+    with _cache_lock:
+        cached = _cache.get(source_key)
+        if cached and now - cached["time"] < CACHE_SECONDS:
+            return cached["payload"]
 
     kind = SOURCES[source_key]["kind"]
     if kind == "zhihu":
@@ -1573,7 +1565,8 @@ def fetch_source(source_key):
     else:
         raise RuntimeError(f"Unknown source kind: {kind}")
 
-    _cache[source_key] = {"time": now, "payload": payload}
+    with _cache_lock:
+        _cache[source_key] = {"time": now, "payload": payload}
     return payload
 
 
@@ -1785,11 +1778,17 @@ def create_flask_app():
 
     @flask_app.get("/api/preview")
     def flask_preview():
+        ip = client_ip_from_headers(request.headers, request.remote_addr or "")
+        if not PREVIEW_LIMITER.allow(ip):
+            return json_response({"error": "请求过于频繁，请稍后再试"}, status=429)
         payload, status = preview_payload(request.args.get("url", ""))
         return json_response(payload, status=status)
 
     @flask_app.get("/api/preview-image")
     def flask_preview_image():
+        ip = client_ip_from_headers(request.headers, request.remote_addr or "")
+        if not PREVIEW_LIMITER.allow(ip):
+            return json_response({"error": "请求过于频繁，请稍后再试"}, status=429)
         payload, status = preview_image_payload(request.args.get("url", ""))
         return json_response(payload, status=status)
 
