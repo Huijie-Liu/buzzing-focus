@@ -1334,6 +1334,57 @@ def parse_rss(source_key, meta, raw):
     return items, latest
 
 
+# Google News homepage image cache — scraped once per CACHE_SECONDS
+_GOOGLE_IMAGES_CACHE = {}
+_GOOGLE_IMAGES_CACHE_TTL = 180
+
+
+def _unescape_unicode(s):
+    """Decode \\uXXXX escape sequences in a string."""
+    return re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), s)
+
+
+def _fetch_google_homepage_images(home_url):
+    """Scrape a Google News homepage for article thumbnail URLs.
+
+    Returns a list of image URLs in page order (roughly ranking order)."""
+    now = time.time()
+    cached = _GOOGLE_IMAGES_CACHE.get(home_url)
+    if cached and now - cached[0] < _GOOGLE_IMAGES_CACHE_TTL:
+        return cached[1]
+
+    if not _CURL_CFFI_AVAILABLE:
+        _GOOGLE_IMAGES_CACHE[home_url] = (now, [])
+        return []
+
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+        }
+        raw = _curl_fetch(home_url, headers, timeout=15)
+        html_text = raw.decode("utf-8", errors="replace")
+    except Exception:
+        _GOOGLE_IMAGES_CACHE[home_url] = (now, [])
+        return []
+
+    html_decoded = _unescape_unicode(html_text)
+    imgs = re.findall(r'"(https?://[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"', html_decoded)
+    result = []
+    seen = set()
+    for img in imgs:
+        img = html.unescape(img)
+        if "google" in img.lower() or "gstatic" in img.lower():
+            continue
+        if img in seen:
+            continue
+        seen.add(img)
+        result.append(img)
+
+    _GOOGLE_IMAGES_CACHE[home_url] = (now, result)
+    return result
+
+
 def parse_google_rss(source_key, meta, raw):
     root = ET.fromstring(raw)
     channel = root.find("channel")
@@ -1364,11 +1415,20 @@ def parse_google_rss(source_key, meta, raw):
                 title=title,
                 url=link,
                 summary=summary,
-                image=rss_image(item),
+                image="",
                 published_at=child_text(item, "pubDate"),
                 item_id=child_text(item, "guid") or link,
             )
         )
+    # Enrich with images scraped from the Google News homepage.
+    # Items and homepage are both ranked by Google, so positional matching
+    # is a reasonable approximation.
+    home_url = meta.get("home", "")
+    if home_url:
+        images = _fetch_google_homepage_images(home_url)
+        for i, it in enumerate(items):
+            if i < len(images):
+                it["image"] = images[i]
     return items, latest
 
 

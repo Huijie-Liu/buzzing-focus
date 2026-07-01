@@ -114,7 +114,6 @@ function renderArticle(item) {
   } else {
     media.remove();
     // Lazy-load og:image for items without a feed image but with a real article URL.
-    // Skip Google News: its pages are JS SPAs with a shared generic og:image.
     if (item.url && item.url.startsWith("http") && !item.url.includes("news.google.com")) {
       scheduleLazyImage(node, item.url);
     }
