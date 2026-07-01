@@ -784,27 +784,6 @@ h1 {
   }
 }
 
-/* ---- Summary: Loading state ---- */
-
-.summary-loading {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: var(--muted);
-  font-size: 14px;
-}
-
-.summary-spinner {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  border: 2px solid var(--line);
-  border-top-color: #f0a030;
-  border-radius: 50%;
-  animation: spin 0.7s linear infinite;
-  flex: 0 0 auto;
-}
-
 .summary-skeleton {
   margin-top: 18px;
   display: flex;
@@ -1036,10 +1015,6 @@ h1 {
 
 @keyframes fade-in {
   from { opacity: 0; }
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 @keyframes cursor-blink {

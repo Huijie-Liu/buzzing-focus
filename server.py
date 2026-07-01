@@ -1446,7 +1446,7 @@ def _fetch_google_homepage_images(home_url):
 def _match_google_images(items, home_url):
     """Enrich Google News RSS items with images from the homepage.
 
-    Matches by publisher name first, falling back to positional order."""
+    Matched by publisher name from image CDN domain → RSS source field."""
     if not items:
         return
     image_pairs = _fetch_google_homepage_images(home_url)
@@ -1790,12 +1790,10 @@ _HUPU_TITLE_RE = re.compile(
     r'<span class="t-title">(.+?)</span>.*?'
     r'<span class="t-lights">(\d+)亮</span>.*?'
     r'<span class="t-replies">(\d+)回复</span>',
-    re.DOTALL,
 )
 _HUPU_POST_RE = re.compile(
     r'<div class="post-title"><a href="(/\d+\.html)"[^>]*class="p-title"[^>]*>([^<]+)</a></div>\s*'
     r'<div class="post-datum">(\d+)\s*/\s*\d+</div>',
-    re.DOTALL,
 )
 _HUPU_LINK_RE = re.compile(r'<a href="(/\d+\.html)"')
 
