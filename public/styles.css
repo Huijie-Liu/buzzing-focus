@@ -238,7 +238,7 @@ h1 {
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 10px clamp(14px, 3vw, 40px);
+    padding: 10px clamp(10px, 2vw, 24px);
   }
 
 }
@@ -693,8 +693,8 @@ h1 {
   border: 1px solid var(--line);
   cursor: pointer;
   color: var(--muted);
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-md);
   background: var(--panel);
   line-height: 1;
@@ -751,8 +751,8 @@ h1 {
   bottom: 28px;
   right: 28px;
   z-index: 20;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   border: 1px solid var(--line);
   border-radius: 50%;
   background: var(--panel);
@@ -1301,22 +1301,22 @@ h1 {
 /* ---- Phone: full-width columns, maximum information density ---- */
 @media (max-width: 540px) {
   .topbar-body {
-    padding: 3px 5px;
-    gap: 3px 4px;
+    padding: 4px 4px;
+    gap: 4px 4px;
   }
 
   .brand {
-    gap: 3px;
+    gap: 4px;
   }
 
   .mark {
-    width: 18px;
-    height: 18px;
-    flex: 0 0 18px;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
   }
 
   h1 {
-    font-size: 15px;
+    font-size: 16px;
   }
 
   .last-updated {
@@ -1325,29 +1325,29 @@ h1 {
   }
 
   .icon-button {
-    width: 28px;
-    height: 28px;
-    flex: 0 0 28px;
+    width: 30px;
+    height: 30px;
+    flex: 0 0 30px;
   }
 
   /* Tighter category tabs */
   .category-tabs {
-    padding: 2px;
-    gap: 2px;
+    padding: 3px;
+    gap: 3px;
   }
 
   .category-tab {
-    height: 28px;
-    padding: 0 6px;
+    height: 30px;
+    padding: 0 8px;
     font-size: 12px;
-    gap: 2px;
+    gap: 3px;
     min-width: 0;
   }
 
   /* Compact search bar */
   .search-bar-inner {
-    padding: 5px 8px;
-    gap: 5px;
+    padding: 6px 8px;
+    gap: 6px;
   }
 
   .search-input {
@@ -1364,9 +1364,9 @@ h1 {
   .feed {
     gap: 4px;
     scroll-snap-type: x mandatory;
-    scroll-padding: 0 4px;
-    padding-left: 4px;
-    padding-right: 4px;
+    scroll-padding: 0 2px;
+    padding-left: 2px;
+    padding-right: 2px;
     padding-bottom: 6px;
   }
 
@@ -1398,29 +1398,29 @@ h1 {
   }
 
   .title {
-    font-size: 15px;
-    line-height: 1.3;
+    font-size: 16px;
+    line-height: 1.32;
     margin-top: 1px;
   }
 
   .summary {
     font-size: 13px;
     -webkit-line-clamp: 2;
-    margin: 2px 0 0;
+    margin: 3px 0 0;
   }
 
   .links {
-    margin-top: 3px;
-    gap: 5px;
-    font-size: 11px;
+    margin-top: 4px;
+    gap: 6px;
+    font-size: 12px;
   }
 
   .card-stats {
-    margin-top: 3px;
+    margin-top: 4px;
   }
 
   .card-time {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   /* Shrink images on small screens */
@@ -1464,12 +1464,12 @@ h1 {
 
   /* Tighter badges */
   .stat-badge {
-    padding: 1px 5px;
+    padding: 1px 6px;
     font-size: 11px;
   }
 
   .live-badge {
-    height: 14px;
+    height: 15px;
     font-size: 9px;
     margin-left: 3px;
   }
