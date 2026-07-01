@@ -1338,16 +1338,73 @@ def parse_rss(source_key, meta, raw):
 _GOOGLE_IMAGES_CACHE = {}
 _GOOGLE_IMAGES_CACHE_TTL = 180
 
+# Publisher domain → name mapping for matching Google News source names.
+# Values must match the lowercased RSS <source> text exactly.
+_PUBLISHER_DOMAINS = {
+    "bbc.co.uk": "bbc",
+    "bbc.com": "bbc",
+    "files.bbci": "bbc",
+    "ichef.bbci": "bbc",
+    "nyt.com": "the new york times",
+    "nytimes.com": "the new york times",
+    "brightspotcdn": "npr",
+    "npr.org": "npr",
+    "media.cnn.com": "cnn",
+    "cnn.com": "cnn",
+    "washingtonpost.com": "the washington post",
+    "theguardian.com": "the guardian",
+    "guim.co.uk": "the guardian",
+    "wsj.com": "the wall street journal",
+    "reuters.com": "reuters",
+    "bloomberg.com": "bloomberg",
+    "bloomberglaw.com": "bloomberg",
+    "nbcnews.com": "nbc news",
+    "abcnews.go.com": "abc news",
+    "abcotvs.com": "abc news",
+    "cbsnews.com": "cbs news",
+    "cbsnewsstatic.com": "cbs news",
+    "foxnews.com": "fox news",
+    "politico.com": "politico",
+    "politico.eu": "politico.eu",
+    "thehill.com": "the hill",
+    "axios.com": "axios",
+    "vox.com": "vox",
+    "apnews.com": "associated press",
+    "usatoday.com": "usa today",
+    "cnbc.com": "cnbc",
+    "aljazeera.com": "al jazeera",
+    "france24.com": "france 24",
+    "yahoo.com": "yahoo",
+    "yimg.com": "yahoo",
+    "ft.com": "financial times",
+    "theverge.com": "the verge",
+    "deadline.com": "deadline",
+    "variety.com": "variety",
+    "space.com": "space",
+    "engadget.com": "engadget",
+    "cnet.com": "cnet",
+    "9to5google.com": "9to5google",
+    "9to5mac.com": "9to5google",
+}
 
 def _unescape_unicode(s):
     """Decode \\uXXXX escape sequences in a string."""
     return re.sub(r'\\u([0-9a-fA-F]{4})', lambda m: chr(int(m.group(1), 16)), s)
 
 
-def _fetch_google_homepage_images(home_url):
-    """Scrape a Google News homepage for article thumbnail URLs.
+def _guess_publisher_from_url(url):
+    """Guess a publisher name from an image URL domain."""
+    url_lower = url.lower()
+    for domain_pattern, name in _PUBLISHER_DOMAINS.items():
+        for pat in domain_pattern.split("|"):
+            if pat in url_lower:
+                return name
+    return ""
 
-    Returns a list of image URLs in page order (roughly ranking order)."""
+
+def _fetch_google_homepage_images(home_url):
+    """Scrape a Google News homepage and return a list of (image_url, publisher) pairs
+    in page order.  Publisher names are normalised for matching against RSS <source>."""
     now = time.time()
     cached = _GOOGLE_IMAGES_CACHE.get(home_url)
     if cached and now - cached[0] < _GOOGLE_IMAGES_CACHE_TTL:
@@ -1370,6 +1427,7 @@ def _fetch_google_homepage_images(home_url):
 
     html_decoded = _unescape_unicode(html_text)
     imgs = re.findall(r'"(https?://[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"', html_decoded)
+
     result = []
     seen = set()
     for img in imgs:
@@ -1379,10 +1437,39 @@ def _fetch_google_homepage_images(home_url):
         if img in seen:
             continue
         seen.add(img)
-        result.append(img)
+        publisher = _guess_publisher_from_url(img)
+        result.append((img, publisher))
 
     _GOOGLE_IMAGES_CACHE[home_url] = (now, result)
     return result
+
+
+def _match_google_images(items, home_url):
+    """Enrich Google News RSS items with images from the homepage.
+
+    Matches by publisher name first, falling back to positional order."""
+    if not items:
+        return
+    image_pairs = _fetch_google_homepage_images(home_url)
+    if not image_pairs:
+        return
+
+    # Per-publisher image queues: track which image index to use next
+    publisher_idx = {}
+    publisher_pool = {}  # publisher_name -> list of image_url
+    for img_url, publisher in image_pairs:
+        if publisher:
+            publisher_pool.setdefault(publisher, []).append(img_url)
+
+    for item in items:
+        # Publisher name is stored in summary for Google News items
+        publisher_name = (item.get("summary") or "").strip().lower()
+        pool = publisher_pool.get(publisher_name)
+        if pool:
+            idx = publisher_idx.get(publisher_name, 0)
+            if idx < len(pool):
+                item["image"] = pool[idx]
+                publisher_idx[publisher_name] = idx + 1
 
 
 def parse_google_rss(source_key, meta, raw):
@@ -1421,14 +1508,11 @@ def parse_google_rss(source_key, meta, raw):
             )
         )
     # Enrich with images scraped from the Google News homepage.
-    # Items and homepage are both ranked by Google, so positional matching
-    # is a reasonable approximation.
+    # Matched by publisher name (from image domain → RSS source), with
+    # per-publisher ordering preserved.
     home_url = meta.get("home", "")
     if home_url:
-        images = _fetch_google_homepage_images(home_url)
-        for i, it in enumerate(items):
-            if i < len(images):
-                it["image"] = images[i]
+        _match_google_images(items, home_url)
     return items, latest
 
 
