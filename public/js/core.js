@@ -9,7 +9,7 @@ export const SOURCE_GROUPS = [
   { key: "general",   label: "综合" },
   { key: "business",  label: "财经" },
   { key: "tech",      label: "科技" },
-  { key: "opinion",   label: "观点" },
+  { key: "sports",    label: "体育" },
 ];
 
 export const SOURCES = [
@@ -21,14 +21,14 @@ export const SOURCES = [
   { key: "bbc",        label: "BBC",            accent: "#b80000", group: "general" },
   { key: "guardian",   label: "卫报",           accent: "#052962", group: "general" },
   { key: "washingtonpost", label: "华盛顿邮报", accent: "#1a1a1a", group: "general" },
+  { key: "atlantic",   label: "大西洋周刊",     accent: "#111111", group: "general" },
+  { key: "newyorker",  label: "纽约客",         accent: "#e60000", group: "general" },
   { key: "bloomberg",  label: "彭博社",         accent: "#0068ff", group: "business" },
   { key: "economist",  label: "经济学人",       accent: "#d71920", group: "business" },
   { key: "hn",         label: "Hacker News",    accent: "#f0652f", group: "tech" },
   { key: "verge",      label: "The Verge",      accent: "#e2127a", group: "tech" },
   { key: "mit_tech",   label: "MIT 科技评论",   accent: "#ff5a00", group: "tech" },
   { key: "linux_do",   label: "LINUX DO",       accent: "#0088cc", group: "tech" },
-  { key: "atlantic",   label: "大西洋周刊",     accent: "#111111", group: "opinion" },
-  { key: "newyorker",  label: "纽约客",         accent: "#e60000", group: "opinion" },
 ];
 
 export const MAX_ITEMS_PER_TAB     = 50;

@@ -1011,7 +1011,7 @@ function toggleHelp() {
   if (existing) { unmountOverlay(existing); existing.remove(); return; }
   const rows = [
     ["j / k", "本列下一篇 / 上一篇"], ["h / l", "上一列 / 下一列"],
-    ["Enter", "打开选中文章"], ["1 - 5", "热点 / 综合 / 财经 / 科技 / 观点"],
+    ["Enter", "打开选中文章"], ["1 - 5", "热点 / 综合 / 财经 / 科技 / 体育"],
     ["[ / ]", "上一组 / 下一组"], ["d / u", "本列向下 / 向上半页"],
     ["g g / G", "本列顶部 / 底部"], ["t", "明暗主题"],
     ["r", "刷新"], ["Esc", "取消选中 / 关闭"], ["?", "显示 / 隐藏帮助"],
@@ -1098,7 +1098,7 @@ function handleVimKey(e) {
     case "2": e.preventDefault(); setActiveGroup("general"); resetFeedScroll(); render(); break;
     case "3": e.preventDefault(); setActiveGroup("business"); resetFeedScroll(); render(); break;
     case "4": e.preventDefault(); setActiveGroup("tech"); resetFeedScroll(); render(); break;
-    case "5": e.preventDefault(); setActiveGroup("opinion"); resetFeedScroll(); render(); break;
+    case "5": e.preventDefault(); setActiveGroup("sports"); resetFeedScroll(); render(); break;
   }
 }
 
