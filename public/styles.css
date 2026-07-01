@@ -1301,42 +1301,57 @@ h1 {
 /* ---- Phone: full-width columns, maximum information density ---- */
 @media (max-width: 540px) {
   .topbar-body {
-    padding: 4px 6px;
-    gap: 4px 6px;
+    padding: 3px 5px;
+    gap: 3px 4px;
   }
 
   .brand {
-    gap: 4px;
+    gap: 3px;
   }
 
   .mark {
-    width: 20px;
-    height: 20px;
-    flex: 0 0 20px;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
   }
 
   h1 {
-    font-size: 15px;
+    font-size: 14px;
   }
 
   .last-updated {
-    font-size: 9px;
-    margin-left: 2px;
+    font-size: 8px;
+    margin-left: 1px;
   }
 
   .icon-button {
-    width: 30px;
-    height: 30px;
-    flex: 0 0 30px;
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
   }
 
   /* Tighter category tabs */
+  .category-tabs {
+    padding: 2px;
+    gap: 2px;
+  }
+
   .category-tab {
-    height: 30px;
-    padding: 0 8px;
-    font-size: 12px;
-    gap: 3px;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 11px;
+    gap: 2px;
     min-width: 0;
+  }
+
+  /* Compact search bar */
+  .search-bar-inner {
+    padding: 5px 8px;
+    gap: 5px;
+  }
+
+  .search-input {
+    font-size: 13px;
   }
 
   /* Minimal shell margin */
