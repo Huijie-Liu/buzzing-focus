@@ -1169,56 +1169,184 @@ h1 {
   }
 }
 
-/* ---- Phone: full-width columns, larger tap targets ---- */
+/* ---- Phone: full-width columns, maximum information density ---- */
 @media (max-width: 540px) {
   .topbar-body {
-    padding: 9px 12px;
+    padding: 6px 8px;
+    gap: 6px 8px;
   }
 
-  .shell {
-    width: 100%;
-    margin-top: 10px;
+  .brand {
+    gap: 6px;
+  }
+
+  .mark {
+    width: 22px;
+    height: 22px;
+    flex: 0 0 22px;
   }
 
   h1 {
-    font-size: 17px;
+    font-size: 16px;
   }
 
   .icon-button {
-    flex: 0 0 40px;
-    width: 40px;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 34px;
   }
 
+  /* Tighter category tabs */
+  .category-tab {
+    height: 28px;
+    padding: 0 9px;
+    font-size: 13px;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  /* Minimal shell margin */
+  .shell {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  /* Columns fill nearly the full viewport width */
   .feed {
-    gap: 16px;
+    gap: 6px;
     scroll-snap-type: x mandatory;
-    scroll-padding: 0 20px;
-    padding-left: 20px;
-    padding-right: 20px;
+    scroll-padding: 0 6px;
+    padding-left: 6px;
+    padding-right: 6px;
+    padding-bottom: 8px;
   }
 
   .column {
-    flex: 0 0 calc(100vw - 40px);
-    max-width: calc(100vw - 40px);
+    flex: 0 0 calc(100vw - 12px);
+    max-width: calc(100vw - 12px);
     scroll-snap-align: center;
   }
 
+  .column-head {
+    padding: 7px 10px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .column-dot {
+    width: 6px;
+    height: 6px;
+  }
+
+  .column-list {
+    gap: 5px;
+    padding: 5px;
+  }
+
+  /* Tighter card body */
+  .story-body {
+    padding: 10px 12px;
+  }
+
   .title {
-    font-size: 16px;
-    line-height: 1.34;
+    font-size: 15px;
+    line-height: 1.3;
+    margin-top: 1px;
   }
 
   .summary {
+    font-size: 13px;
     -webkit-line-clamp: 3;
+    margin: 3px 0 0;
   }
 
-  .story-body {
-    padding: 13px 14px;
+  .links {
+    margin-top: 5px;
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .card-stats {
+    margin-top: 5px;
+  }
+
+  .card-time {
+    font-size: 11px;
+  }
+
+  /* Shrink images on small screens */
+  .media img {
+    height: 150px;
+  }
+
+  .story-reuters .media img {
+    height: 160px;
+  }
+
+  .story-economist .media img,
+  .story-bloomberg .media img,
+  .story-atlantic  .media img,
+  .story-newyorker .media img,
+  .story-mit_tech  .media img,
+  .story-verge     .media img,
+  .story-guardian  .media img,
+  .story-bbc       .media img {
+    height: 140px;
+  }
+
+  .story.lazy-image-loaded .media img {
+    height: 120px;
+  }
+
+  /* Source-specific mobile tweaks */
+  .story-hn .story-body {
+    padding: 8px 12px;
+  }
+
+  .story-hn .links {
+    margin-top: 4px;
+  }
+
+  .story-zhihu .story-body {
+    padding: 8px 12px;
+  }
+
+  .story-reuters .story-body {
+    padding: 8px 12px 10px;
+  }
+
+  /* Tighter badges */
+  .stat-badge {
+    padding: 1px 6px;
+    font-size: 11px;
+  }
+
+  .live-badge {
+    height: 15px;
+    font-size: 9px;
+    margin-left: 4px;
+  }
+
+  .publisher-badge {
+    font-size: 10px;
+  }
+
+  .expand-toggle {
+    font-size: 11px;
   }
 
   .scroll-top {
-    right: 16px;
-    bottom: max(16px, env(safe-area-inset-bottom));
+    right: 10px;
+    bottom: max(10px, env(safe-area-inset-bottom));
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Notice */
+  .notice {
+    margin: 0 0 8px;
+    padding: 10px 12px;
+    font-size: 13px;
   }
 
   /* ---- AI Summary modal: mobile fullscreen ---- */
