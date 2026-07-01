@@ -5,28 +5,30 @@
 // ---- Configuration -------------------------------------------------------
 
 export const SOURCE_GROUPS = [
-  { key: "news",     label: "新闻" },
-  { key: "hot",      label: "热点" },
-  { key: "analysis", label: "深度" },
+  { key: "hot",       label: "热点" },
+  { key: "general",   label: "综合" },
+  { key: "business",  label: "财经" },
+  { key: "tech",      label: "科技" },
+  { key: "opinion",   label: "观点" },
 ];
 
 export const SOURCES = [
-  { key: "reuters",    label: "路透社",       accent: "#ff8000", group: "news" },
-  { key: "bloomberg",  label: "彭博社",       accent: "#0068ff", group: "news" },
-  { key: "linux_do",   label: "LINUX DO",     accent: "#0088cc", group: "news" },
-  { key: "guardian",   label: "卫报",         accent: "#052962", group: "news" },
-  { key: "bbc",        label: "BBC",          accent: "#b80000", group: "news" },
-  { key: "washingtonpost", label: "华盛顿邮报", accent: "#1a1a1a", group: "news" },
-  { key: "zhihu",      label: "知乎热榜",     accent: "#0066ff", group: "hot" },
-  { key: "hn",         label: "Hacker News",  accent: "#f0652f", group: "hot" },
+  { key: "zhihu",      label: "知乎热榜",       accent: "#0066ff", group: "hot" },
   { key: "linux_do_top", label: "LINUX DO 热榜", accent: "#0a8ed6", group: "hot" },
   { key: "google",     label: "Google News 美国", accent: "#1a73e8", group: "hot" },
   { key: "google_zh",  label: "Google News 中国", accent: "#34a853", group: "hot" },
-  { key: "economist",  label: "经济学人",     accent: "#d71920", group: "analysis" },
-  { key: "verge",      label: "The Verge",    accent: "#e2127a", group: "analysis" },
-  { key: "atlantic",   label: "大西洋周刊",   accent: "#111111", group: "analysis" },
-  { key: "newyorker",  label: "纽约客",       accent: "#e60000", group: "analysis" },
-  { key: "mit_tech",   label: "MIT 科技评论", accent: "#ff5a00", group: "analysis" },
+  { key: "reuters",    label: "路透社",         accent: "#ff8000", group: "general" },
+  { key: "bbc",        label: "BBC",            accent: "#b80000", group: "general" },
+  { key: "guardian",   label: "卫报",           accent: "#052962", group: "general" },
+  { key: "washingtonpost", label: "华盛顿邮报", accent: "#1a1a1a", group: "general" },
+  { key: "bloomberg",  label: "彭博社",         accent: "#0068ff", group: "business" },
+  { key: "economist",  label: "经济学人",       accent: "#d71920", group: "business" },
+  { key: "hn",         label: "Hacker News",    accent: "#f0652f", group: "tech" },
+  { key: "verge",      label: "The Verge",      accent: "#e2127a", group: "tech" },
+  { key: "mit_tech",   label: "MIT 科技评论",   accent: "#ff5a00", group: "tech" },
+  { key: "linux_do",   label: "LINUX DO",       accent: "#0088cc", group: "tech" },
+  { key: "atlantic",   label: "大西洋周刊",     accent: "#111111", group: "opinion" },
+  { key: "newyorker",  label: "纽约客",         accent: "#e60000", group: "opinion" },
 ];
 
 export const MAX_ITEMS_PER_TAB     = 50;
@@ -38,7 +40,7 @@ export const MAX_READ_IDS          = 2000;
 
 function initialSourceGroup() {
   const stored = localStorage.getItem("activeSourceGroup");
-  return SOURCE_GROUPS.some((g) => g.key === stored) ? stored : "news";
+  return SOURCE_GROUPS.some((g) => g.key === stored) ? stored : "hot";
 }
 
 function loadReadIds() {
@@ -159,7 +161,7 @@ export function escapeHtml(str) {
 
 // Sources that are already ranked by the server (e.g. HN top stories,
 // Zhihu hot list) — preserve the server order instead of sorting by time.
-const RANKED_SOURCES = new Set(["hn", "zhihu", "google", "google_zh", "linux_do_top"]);
+const RANKED_SOURCES = new Set(["zhihu", "google", "google_zh", "linux_do_top"]);
 
 /** One entry per source in the active group.  Ranked sources keep
  *  server order; the rest are sorted newest-first. */

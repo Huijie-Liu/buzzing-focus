@@ -81,6 +81,7 @@ SOURCES = {
         "kind": "hn",
         "home": "https://news.ycombinator.com/",
         "accent": "#f0652f",
+        "category": "tech",
         "story_limit": 20,
     },
     "economist": {
@@ -89,6 +90,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.economist.com/latest",
         "accent": "#d71920",
+        "category": "business",
         "story_limit": 20,
         "feeds": ["https://www.economist.com/latest/rss.xml"],
     },
@@ -98,6 +100,7 @@ SOURCES = {
         "kind": "reuters_sitemap",
         "home": "https://www.reuters.com/",
         "accent": "#ff8000",
+        "category": "general",
         "story_limit": 20,
         "feeds": [
             "https://www.reuters.com/arc/outboundfeeds/news-sitemap/?outputType=xml",
@@ -111,6 +114,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.bloomberg.com/",
         "accent": "#0068ff",
+        "category": "business",
         "story_limit": 20,
         "feeds": [
             "https://feeds.bloomberg.com/markets/news.rss",
@@ -130,6 +134,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.theguardian.com/",
         "accent": "#052962",
+        "category": "general",
         "story_limit": 20,
         "feeds": [
             "https://www.theguardian.com/world/rss",
@@ -146,6 +151,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.bbc.com/news",
         "accent": "#b80000",
+        "category": "general",
         "story_limit": 20,
         "feeds": [
             "https://feeds.bbci.co.uk/news/world/rss.xml",
@@ -162,6 +168,7 @@ SOURCES = {
         "kind": "atom",
         "home": "https://www.theverge.com/",
         "accent": "#e2127a",
+        "category": "tech",
         "story_limit": 20,
         "feeds": ["https://www.theverge.com/rss/index.xml"],
     },
@@ -171,6 +178,7 @@ SOURCES = {
         "kind": "google_rss",
         "home": "https://news.google.com/topstories?hl=en-US&gl=US&ceid=US:en",
         "accent": "#1a73e8",
+        "category": "hot",
         "story_limit": 20,
         "feeds": [
             "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en",
@@ -188,6 +196,7 @@ SOURCES = {
         "kind": "google_rss",
         "home": "https://news.google.com/topstories?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
         "accent": "#34a853",
+        "category": "hot",
         "story_limit": 20,
         "feeds": [
             "https://news.google.com/rss?hl=zh-CN&gl=CN&ceid=CN:zh-Hans",
@@ -205,6 +214,7 @@ SOURCES = {
         "kind": "atom",
         "home": "https://www.theatlantic.com/",
         "accent": "#111111",
+        "category": "opinion",
         "story_limit": 20,
         "feeds": ["https://www.theatlantic.com/feed/all/"],
     },
@@ -214,6 +224,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.newyorker.com/",
         "accent": "#e60000",
+        "category": "opinion",
         "story_limit": 20,
         "feeds": ["https://www.newyorker.com/feed/everything"],
     },
@@ -223,6 +234,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.technologyreview.com/",
         "accent": "#ff5a00",
+        "category": "tech",
         "story_limit": 20,
         "feeds": ["https://www.technologyreview.com/feed/"],
     },
@@ -232,6 +244,7 @@ SOURCES = {
         "kind": "zhihu",
         "home": "https://www.zhihu.com/hot",
         "accent": "#0066ff",
+        "category": "hot",
         "story_limit": 20,
     },
     "washingtonpost": {
@@ -240,6 +253,7 @@ SOURCES = {
         "kind": "rss",
         "home": "https://www.washingtonpost.com/",
         "accent": "#1a1a1a",
+        "category": "general",
         "story_limit": 20,
         "feeds": [
             "https://feeds.washingtonpost.com/rss/world",
@@ -255,6 +269,7 @@ SOURCES = {
         "kind": "discourse",
         "home": "https://linux.do/new",
         "accent": "#0088cc",
+        "category": "tech",
         "story_limit": 20,
         "feeds": ["https://linux.do/latest.rss"],
         "headers": {
@@ -268,6 +283,7 @@ SOURCES = {
         "kind": "discourse",
         "home": "https://linux.do/top",
         "accent": "#0a8ed6",
+        "category": "hot",
         "story_limit": 20,
         "feeds": ["https://linux.do/top/daily.rss"],
         "headers": {
