@@ -257,7 +257,47 @@ const SOURCE_FEATURES = {
       links.appendChild(badge);
     }
   },
+
+  hupu_nba: buildHupuFeatures,
+  hupu_soccer: buildHupuFeatures,
+  hupu_lol: buildHupuFeatures,
 };
+
+function buildHupuFeatures(item, node, links) {
+  const score    = Number.isFinite(Number(item.score))    ? Number(item.score)    : null;
+  const comments = Number.isFinite(Number(item.comments)) ? Number(item.comments) : null;
+  if (score === null && comments === null) return;
+
+  const statsEl = document.createElement("div");
+  statsEl.className = "card-stats";
+
+  if (score !== null) {
+    const lights = document.createElement("span");
+    lights.className = "stat-badge lights";
+    const lightStr = score >= 10000
+      ? `${(score / 10000).toFixed(1)} 万亮`
+      : `${score} 亮`;
+    lights.textContent = `👍 ${lightStr}`;
+    statsEl.appendChild(lights);
+  }
+  if (comments !== null) {
+    const comm = document.createElement("a");
+    comm.className = "stat-badge replies";
+    comm.href = item.url || "#";
+    comm.target = "_blank";
+    comm.rel = "noreferrer";
+    const replyStr = comments >= 10000
+      ? `${(comments / 10000).toFixed(1)} 万回复`
+      : `${comments} 回复`;
+    comm.textContent = `💬 ${replyStr}`;
+    comm.addEventListener("click", () => tryMarkRead(item, node));
+    statsEl.appendChild(comm);
+  }
+
+  if (statsEl.children.length) {
+    links.insertAdjacentElement("beforebegin", statsEl);
+  }
+}
 
 function buildSourceFeatures(node, item, sourceKey, mainUrl, links) {
   const builder = SOURCE_FEATURES[sourceKey];

@@ -557,6 +557,25 @@ h1 {
     font-size: 11px;
     animation: heat-glow 2.4s ease-in-out infinite;
   }
+
+  &.lights {
+    background: var(--source-color, #c41230);
+    color: #fff;
+    opacity: 0.92;
+  }
+
+  &.replies {
+    background: transparent;
+    border: 1px solid var(--source-color, var(--line-strong));
+    color: var(--source-color, var(--ink));
+    text-decoration: none;
+    transition: background 0.18s ease;
+
+    &:hover {
+      background: var(--source-color, var(--ink));
+      color: #fff;
+    }
+  }
 }
 
 .hn-badges {
@@ -1080,6 +1099,29 @@ h1 {
   }
 }
 
+/* Hupu: forum-style cards with lights / replies badges */
+.story-hupu_nba,
+.story-hupu_soccer,
+.story-hupu_lol {
+  .story-body { padding: 12px 16px; }
+  .links      { margin-top: 6px; }
+  .summary    { display: none; }
+
+  .card-stats {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+
+    .expand-toggle {
+      margin-left: auto;
+      font-size: 12px;
+      font-weight: 650;
+      color: var(--muted);
+    }
+  }
+}
+
 /* Reuters: larger hero image, no summary */
 .story-reuters {
   .media img  { height: 210px; }
@@ -1291,6 +1333,12 @@ h1 {
 
   .story-reuters .story-body {
     padding: 8px 12px 10px;
+  }
+
+  .story-hupu_nba .story-body,
+  .story-hupu_soccer .story-body,
+  .story-hupu_lol .story-body {
+    padding: 8px 12px;
   }
 
   /* Tighter badges */
