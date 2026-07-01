@@ -29,6 +29,7 @@ export const SOURCES = [
   { key: "verge",      label: "The Verge",      accent: "#e2127a", group: "tech" },
   { key: "mit_tech",   label: "MIT 科技评论",   accent: "#ff5a00", group: "tech" },
   { key: "linux_do",   label: "LINUX DO",       accent: "#0088cc", group: "tech" },
+  { key: "hupu",       label: "虎扑热帖",       accent: "#c41230", group: "sports" },
 ];
 
 export const MAX_ITEMS_PER_TAB     = 50;
@@ -111,7 +112,7 @@ export function sourceCount(sourceKey) {
 // so a missing config never breaks the page.
 const _cfg = (window.__BUZZING_CONFIG__ || {});
 const NON_TRANSLATABLE_SOURCES = new Set(
-  _cfg.nonTranslatableSources || ["zhihu", "google_zh", "linux_do", "linux_do_top"]
+  _cfg.nonTranslatableSources || ["zhihu", "google_zh", "linux_do", "linux_do_top", "hupu"]
 );
 
 export function shouldTranslateSource(sourceKey) {
@@ -161,7 +162,7 @@ export function escapeHtml(str) {
 
 // Sources that are already ranked by the server (e.g. HN top stories,
 // Zhihu hot list) — preserve the server order instead of sorting by time.
-const RANKED_SOURCES = new Set(["zhihu", "google", "google_zh", "linux_do_top"]);
+const RANKED_SOURCES = new Set(["zhihu", "google", "google_zh", "linux_do_top", "hupu"]);
 
 /** One entry per source in the active group.  Ranked sources keep
  *  server order; the rest are sorted newest-first. */
