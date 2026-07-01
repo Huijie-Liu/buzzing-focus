@@ -105,7 +105,6 @@ def make_item(
         "score": score,
         "comments": comments,
         "rank": rank,
-        "tags": [],
     }
 
 

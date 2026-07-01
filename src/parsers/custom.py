@@ -144,6 +144,7 @@ _HUPU_TITLE_RE = re.compile(
     r'<span class="t-title">(.+?)</span>.*?'
     r'<span class="t-lights">(\d+)亮</span>.*?'
     r'<span class="t-replies">(\d+)回复</span>',
+    re.DOTALL,
 )
 _HUPU_POST_RE = re.compile(
     r'<div class="post-title"><a href="(/\d+\.html)"[^>]*class="p-title"[^>]*>([^<]+)</a></div>\s*'

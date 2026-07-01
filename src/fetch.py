@@ -163,6 +163,7 @@ def fetch_preview_url(url):
         except (urllib.error.URLError, TimeoutError):
             pass
     request = urllib.request.Request(url, headers=headers)
+    request.add_header("DNT", "1")
     with _SAFE_OPENER.open(request, timeout=12) as response:
         raw = read_limited(response)
         charset = response.headers.get_content_charset() or "utf-8"

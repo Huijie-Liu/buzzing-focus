@@ -1136,7 +1136,8 @@ h1 {
   display: none;
 }
 
-/* RSS/Atom sources with images: slightly taller hero (desktop) */
+/* RSS/Atom sources with images: slightly taller hero (height
+   tuned by --card-image-height so the selector list is written once) */
 .story-economist .media img,
 .story-bloomberg .media img,
 .story-atlantic  .media img,
@@ -1145,7 +1146,7 @@ h1 {
 .story-verge     .media img,
 .story-guardian  .media img,
 .story-bbc       .media img {
-  height: 180px;
+  height: var(--card-image-height, 180px);
 }
 
 /* =========================================================================
@@ -1298,22 +1299,14 @@ h1 {
   /* Shrink images on small screens */
   .media img {
     height: 150px;
+    --card-image-height: 140px;
   }
 
   .story-reuters .media img {
     height: 160px;
   }
 
-  .story-economist .media img,
-  .story-bloomberg .media img,
-  .story-atlantic  .media img,
-  .story-newyorker .media img,
-  .story-mit_tech  .media img,
-  .story-verge     .media img,
-  .story-guardian  .media img,
-  .story-bbc       .media img {
-    height: 140px;
-  }
+  /* Tall source images shrink via --card-image-height (selector list lives at desktop) */
 
   .story.lazy-image-loaded .media img {
     height: 120px;

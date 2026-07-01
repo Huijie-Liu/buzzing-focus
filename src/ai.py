@@ -494,5 +494,3 @@ def summary_events(items):
         yield {"type": "done", "text": buffer, "sources": sources}
     except Exception as exc:
         yield {"type": "error", "message": str(exc)}
-
-    yield {"type": "complete"}
