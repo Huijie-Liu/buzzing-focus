@@ -67,6 +67,8 @@ export const state = {
   theme: localStorage.getItem(THEME_STORAGE_KEY) || "light",
   loading: false,
   readIds: loadReadIds(),
+  lastUpdated: null,
+  searchQuery: "",
 };
 
 export function nextItemSeq() { return ++_itemSeq; }
@@ -127,6 +129,9 @@ export function setActiveGroup(groupKey) {
   state.activeGroup = groupKey;
   localStorage.setItem("activeSourceGroup", groupKey);
 }
+
+// Per-group scroll/selection state preservation
+export const groupScrollState = new Map();
 
 // ---- Column grouping -----------------------------------------------------
 

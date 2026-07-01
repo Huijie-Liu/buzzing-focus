@@ -3,8 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>What's Buzzing</title>
+    <title>What's Buzzing — 多源新闻聚合</title>
+    <meta name="description" content="What's Buzzing — 多源新闻聚合，AI 翻译与要闻总结。追踪 Hacker News、知乎、路透社、BBC、彭博社等 18 个来源的热门内容。" />
+    <meta name="theme-color" content="#f7f8f8" />
+    <meta property="og:title" content="What's Buzzing" />
+    <meta property="og:description" content="多源新闻聚合，AI 翻译与要闻总结" />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="./favicon.svg" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="What's Buzzing" />
+    <meta name="twitter:description" content="多源新闻聚合，AI 翻译与要闻总结" />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
 
     <!-- Typography: Lora for editorial English headings -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -37,6 +47,7 @@
             <circle cx="16" cy="16" r="2.6" fill="#fff"/>
           </svg>
           <h1>What's Buzzing</h1>
+          <span id="lastUpdated" class="last-updated" hidden></span>
         </div>
 
         <nav id="categoryTabs" class="category-tabs" aria-label="新闻类别"></nav>
@@ -54,6 +65,30 @@
             </svg>
           </button>
           <button
+            id="searchButton"
+            class="icon-button"
+            type="button"
+            aria-label="搜索文章"
+            title="搜索文章"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+            </svg>
+          </button>
+          <button
+            id="helpButton"
+            class="icon-button"
+            type="button"
+            aria-label="键盘快捷键"
+            title="键盘快捷键"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M12 17h.01"/>
+            </svg>
+          </button>
+          <button
             id="themeButton"
             class="icon-button"
             type="button"
@@ -68,6 +103,24 @@
         </div>
       </div>
     </header>
+
+    <!-- Search bar (hidden by default) -->
+    <div id="searchBar" class="search-bar" hidden>
+      <div class="search-bar-inner">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="search-icon">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          id="searchInput"
+          class="search-input"
+          type="text"
+          placeholder="搜索文章标题…"
+          autocomplete="off"
+        />
+        <span id="searchCount" class="search-count" hidden></span>
+        <button id="searchClose" class="search-close" type="button" aria-label="关闭搜索">&times;</button>
+      </div>
+    </div>
 
     <!-- ============================================================
     MAIN — error notice + multi-column feed board

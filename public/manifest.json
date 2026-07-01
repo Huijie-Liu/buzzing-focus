@@ -1,0 +1,16 @@
+{
+  "name": "What's Buzzing",
+  "short_name": "Buzzing",
+  "description": "多源新闻聚合，AI 翻译与要闻总结",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f8f8",
+  "theme_color": "#f7f8f8",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

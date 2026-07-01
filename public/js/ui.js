@@ -9,6 +9,7 @@ import {
   findItemById, markRead,
   groupColumns, displayedItems,
   shouldTranslateSource,
+  groupScrollState,
 } from './core.js';
 
 import {
@@ -31,8 +32,15 @@ function cacheElements() {
     feed:           $("#feed"),
     error:          $("#errorBox"),
     theme:          $("#themeButton"),
+    helpButton:     $("#helpButton"),
     template:       $("#articleTemplate"),
     summaryButton:  $("#summaryButton"),
+    lastUpdated:    $("#lastUpdated"),
+    searchButton:   $("#searchButton"),
+    searchBar:      $("#searchBar"),
+    searchInput:    $("#searchInput"),
+    searchCount:    $("#searchCount"),
+    searchClose:    $("#searchClose"),
   };
 }
 
@@ -87,9 +95,8 @@ function renderCategoryTabs() {
     btn.classList.toggle("active", state.activeGroup === group.key);
     btn.innerHTML = `<span>${group.label}</span>`;
     btn.addEventListener("click", () => {
-      setActiveGroup(group.key);
-      resetFeedScroll();
-      render();
+      if (state.activeGroup === group.key) return;
+      switchGroupWithState(group.key);
     });
     els.categoryTabs.append(btn);
   });
@@ -480,9 +487,52 @@ function renderColumnBody(column) {
   return frag;
 }
 
+function renderSkeletonColumns() {
+  const sources = activeGroupSources();
+  const frag = document.createDocumentFragment();
+
+  sources.forEach((source) => {
+    const columnEl = document.createElement("section");
+    columnEl.className = "column";
+    columnEl.dataset.source = source.key;
+    columnEl.style.setProperty("--accent", source.accent || "#191b1f");
+
+    const head = document.createElement("div");
+    head.className = "column-head";
+    head.innerHTML = [
+      '<span class="column-dot"></span>',
+      `<span class="column-name">${source.label}</span>`,
+      '<b class="column-count">-</b>',
+    ].join("");
+
+    const list = document.createElement("div");
+    list.className = "column-list";
+    for (let i = 0; i < 5; i++) {
+      const sk = document.createElement("div");
+      sk.className = "story-skeleton";
+      sk.innerHTML = '<div class="skeleton-line w70 h18"></div><div class="skeleton-line w90"></div><div class="skeleton-line w40"></div>';
+      list.appendChild(sk);
+    }
+
+    columnEl.append(head, list);
+    frag.append(columnEl);
+  });
+
+  return frag;
+}
+
 function renderColumns() {
-  const columns = groupColumns();
   els.feed.replaceChildren();
+
+  // Show skeleton while loading with no data to display
+  if (state.loading && !state.items.length) {
+    els.feed.append(renderSkeletonColumns());
+    return;
+  }
+
+  const columns = groupColumns();
+  if (!columns.length) return;
+
   const frag = document.createDocumentFragment();
 
   columns.forEach((col) => {
@@ -610,6 +660,10 @@ function flushTranslationUpdates() {
   }
 }
 
+/** Guard set — prevents double-fade on the same element while a transition is
+ *  already in progress (e.g. title + summary arriving in the same batch). */
+const _translatingEls = new Set();
+
 function updateItemTranslation(itemId, field) {
   const node = feedCards().find((n) => n.dataset.itemId === itemId);
   if (!node) return;
@@ -618,22 +672,34 @@ function updateItemTranslation(itemId, field) {
 
   if (field === "title") {
     const titleEl = node.querySelector(".title");
-    if (!titleEl) return;
-    const badge = titleEl.querySelector(".live-badge");
-    titleEl.textContent = toText(item.title || "");
-    if (badge) titleEl.appendChild(badge);
-    if (item.titleOriginal && item.titleOriginal !== item.title) {
-      titleEl.title = item.titleOriginal;
-    }
+    if (!titleEl || _translatingEls.has(titleEl)) return;
+    _translatingEls.add(titleEl);
+    titleEl.classList.add("translating");
+    titleEl.addEventListener("transitionend", () => {
+      const badge = titleEl.querySelector(".live-badge");
+      titleEl.textContent = toText(item.title || "");
+      if (badge) titleEl.appendChild(badge);
+      if (item.titleOriginal && item.titleOriginal !== item.title) {
+        titleEl.title = item.titleOriginal;
+      }
+      titleEl.classList.remove("translating");
+      _translatingEls.delete(titleEl);
+    }, { once: true });
   } else if (field === "summary") {
     const summaryEl = node.querySelector(".summary");
-    if (!summaryEl) return;
-    const summaryText = item.summary || "";
-    summaryEl.textContent = toText(summaryText);
-    summaryEl.hidden = !summaryText;
-    if (item.summaryOriginal && item.summaryOriginal !== item.summary) {
-      summaryEl.title = item.summaryOriginal;
-    }
+    if (!summaryEl || _translatingEls.has(summaryEl)) return;
+    _translatingEls.add(summaryEl);
+    summaryEl.classList.add("translating");
+    summaryEl.addEventListener("transitionend", () => {
+      const summaryText = item.summary || "";
+      summaryEl.textContent = toText(summaryText);
+      summaryEl.hidden = !summaryText;
+      if (item.summaryOriginal && item.summaryOriginal !== item.summary) {
+        summaryEl.title = item.summaryOriginal;
+      }
+      summaryEl.classList.remove("translating");
+      _translatingEls.delete(summaryEl);
+    }, { once: true });
   }
 }
 
@@ -646,6 +712,7 @@ export function render() {
   renderColumns();
   addExpandButtons();
   observeCardsForTranslation();
+  if (!els.searchBar?.hidden) applySearchFilter();
 }
 
 // =========================================================================
@@ -676,6 +743,49 @@ function initScrollTop() {
 function resetFeedScroll() {
   els.feed.scrollLeft = 0;
   $$(".column-list").forEach((list) => { list.scrollTop = 0; });
+}
+
+// ---- Category scroll state preservation --------------------------------
+
+function saveGroupScrollState() {
+  const columns = $$(".column-list");
+  const colTops = {};
+  columns.forEach((list) => {
+    const col = list.closest(".column");
+    if (col?.dataset.source) colTops[col.dataset.source] = list.scrollTop;
+  });
+  groupScrollState.set(state.activeGroup, {
+    feedLeft: els.feed.scrollLeft,
+    colTops,
+    selectedId: vim.selectedId,
+  });
+}
+
+function restoreGroupScrollState() {
+  const saved = groupScrollState.get(state.activeGroup);
+  if (!saved) return;
+  requestAnimationFrame(() => {
+    els.feed.scrollLeft = saved.feedLeft || 0;
+    if (saved.colTops) {
+      $$(".column-list").forEach((list) => {
+        const col = list.closest(".column");
+        if (col?.dataset.source && saved.colTops[col.dataset.source] != null) {
+          list.scrollTop = saved.colTops[col.dataset.source];
+        }
+      });
+    }
+    if (saved.selectedId) {
+      vim.selectedId = saved.selectedId;
+      restoreSelection();
+    }
+  });
+}
+
+function switchGroupWithState(groupKey) {
+  saveGroupScrollState();
+  setActiveGroup(groupKey);
+  render();
+  restoreGroupScrollState();
 }
 
 // =========================================================================
@@ -948,6 +1058,12 @@ function cardIndexById(cards, id) {
 
 function firstVisibleColumn() {
   const vW = window.innerWidth;
+  // Prefer the first visible column that actually has article cards
+  for (const col of columnEls()) {
+    const r = col.getBoundingClientRect();
+    if (r.right > 8 && r.left < vW && col.querySelector(".story")) return col;
+  }
+  // Fallback: first visible column (even if skeleton)
   for (const col of columnEls()) {
     const r = col.getBoundingClientRect();
     if (r.right > 8 && r.left < vW) return col;
@@ -1045,13 +1161,62 @@ function openSelected() {
 function cycleGroup(dir) {
   const idx = SOURCE_GROUPS.findIndex((g) => g.key === state.activeGroup);
   const next = SOURCE_GROUPS[(idx + dir + SOURCE_GROUPS.length) % SOURCE_GROUPS.length];
-  setActiveGroup(next.key);
-  resetFeedScroll();
-  render();
+  if (next.key === state.activeGroup) return;
+  switchGroupWithState(next.key);
 }
 
 function isTypingTarget(el) {
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+}
+
+// ---- Search / filter ---------------------------------------------------
+
+function openSearch() {
+  state.searchQuery = "";
+  els.searchBar.hidden = false;
+  els.searchInput.value = "";
+  els.searchCount.hidden = true;
+  els.searchInput.focus();
+  applySearchFilter();
+}
+
+function closeSearch() {
+  state.searchQuery = "";
+  els.searchBar.hidden = true;
+  els.searchInput.value = "";
+  els.searchCount.hidden = true;
+  els.searchInput.blur();
+  applySearchFilter();
+}
+
+function applySearchFilter() {
+  const query = (els.searchInput.value || "").trim().toLowerCase();
+  state.searchQuery = query;
+
+  let totalVisible = 0;
+  let totalAll = 0;
+
+  columnEls().forEach((col) => {
+    const cards = cardsIn(col);
+    let colVisible = 0;
+    cards.forEach((card) => {
+      const titleEl = card.querySelector(".title");
+      const title = (titleEl?.textContent || "").toLowerCase();
+      const match = !query || title.includes(query);
+      card.classList.toggle("hidden-by-search", !match);
+      if (match) colVisible++;
+    });
+    col.classList.toggle("hidden-by-search", colVisible === 0 && cards.length > 0);
+    totalVisible += colVisible;
+    totalAll += cards.length;
+  });
+
+  if (query) {
+    els.searchCount.hidden = false;
+    els.searchCount.textContent = `${totalVisible}/${totalAll}`;
+  } else {
+    els.searchCount.hidden = true;
+  }
 }
 
 function toggleHelp() {
@@ -1061,8 +1226,9 @@ function toggleHelp() {
     ["j / k", "本列下一篇 / 上一篇"], ["h / l", "上一列 / 下一列"],
     ["Enter", "打开选中文章"], ["1 - 5", "热点 / 综合 / 财经 / 科技 / 体育"],
     ["[ / ]", "上一组 / 下一组"], ["d / u", "本列向下 / 向上半页"],
-    ["g g / G", "本列顶部 / 底部"], ["t", "明暗主题"],
-    ["r", "刷新"], ["Esc", "取消选中 / 关闭"], ["?", "显示 / 隐藏帮助"],
+    ["g g / G", "本列顶部 / 底部"], ["/", "搜索文章"],
+    ["t", "明暗主题"], ["r", "刷新"],
+    ["Esc", "取消选中 / 关闭"], ["?", "显示 / 隐藏帮助"],
   ];
   const overlay = document.createElement("div");
   overlay.className = "kbd-help";
@@ -1097,6 +1263,14 @@ function handleVimKey(e) {
   }
 
   if (isTypingTarget(e.target)) return;
+
+  // "/" focuses search (unless already typing in search)
+  if (k === "/" && e.target !== els.searchInput) {
+    e.preventDefault();
+    if (els.searchBar.hidden) openSearch();
+    else els.searchInput.focus();
+    return;
+  }
 
   if (vim.pendingG && k !== "g") {
     vim.pendingG = false;
@@ -1142,11 +1316,11 @@ function handleVimKey(e) {
       break;
     case "r": e.preventDefault(); loadFeed(); break;
     case "t": e.preventDefault(); setTheme(state.theme === "dark" ? "light" : "dark"); break;
-    case "1": e.preventDefault(); setActiveGroup("hot"); resetFeedScroll(); render(); break;
-    case "2": e.preventDefault(); setActiveGroup("general"); resetFeedScroll(); render(); break;
-    case "3": e.preventDefault(); setActiveGroup("business"); resetFeedScroll(); render(); break;
-    case "4": e.preventDefault(); setActiveGroup("tech"); resetFeedScroll(); render(); break;
-    case "5": e.preventDefault(); setActiveGroup("sports"); resetFeedScroll(); render(); break;
+    case "1": e.preventDefault(); if (state.activeGroup !== "hot") switchGroupWithState("hot"); break;
+    case "2": e.preventDefault(); if (state.activeGroup !== "general") switchGroupWithState("general"); break;
+    case "3": e.preventDefault(); if (state.activeGroup !== "business") switchGroupWithState("business"); break;
+    case "4": e.preventDefault(); if (state.activeGroup !== "tech") switchGroupWithState("tech"); break;
+    case "5": e.preventDefault(); if (state.activeGroup !== "sports") switchGroupWithState("sports"); break;
   }
 }
 
@@ -1170,6 +1344,7 @@ function setupApiBridge() {
         }
         break;
       case "translate": scheduleTranslationUpdate(payload.itemId, payload.field); break;
+      case "updated": updateLastUpdatedDisplay(); break;
       case "errors":  renderErrors(payload); break;
       case "error":   els.error.hidden = false; els.error.textContent = `无法读取 feed：${payload}`; break;
     }
@@ -1197,8 +1372,19 @@ function bindEvents() {
   els.theme.addEventListener("click", () =>
     setTheme(state.theme === "dark" ? "light" : "dark"));
 
+  // Keyboard help
+  els.helpButton.addEventListener("click", toggleHelp);
+
   // AI Summary button
   els.summaryButton.addEventListener("click", onSummaryClick);
+
+  // Search
+  els.searchButton.addEventListener("click", () => {
+    if (els.searchBar.hidden) openSearch();
+    else closeSearch();
+  });
+  els.searchInput.addEventListener("input", applySearchFilter);
+  els.searchClose.addEventListener("click", closeSearch);
 
   // Keyboard
   document.addEventListener("keydown", handleVimKey);
@@ -1208,11 +1394,37 @@ function bindEvents() {
 // Initialization
 // =========================================================================
 
+// ---- Last-updated display -----------------------------------------------
+
+function updateLastUpdatedDisplay() {
+  if (state.lastUpdated && els.lastUpdated) {
+    els.lastUpdated.hidden = false;
+    els.lastUpdated.textContent = `更新于 ${formatRelativeTime(state.lastUpdated)}`;
+  }
+}
+
+let lastUpdatedTimer = null;
+
+function startLastUpdatedTimer() {
+  stopLastUpdatedTimer();
+  lastUpdatedTimer = setInterval(updateLastUpdatedDisplay, 60000);
+}
+
+function stopLastUpdatedTimer() {
+  if (lastUpdatedTimer) {
+    clearInterval(lastUpdatedTimer);
+    lastUpdatedTimer = null;
+  }
+}
+
+// ---- Initialization -----------------------------------------------------
+
 export function init() {
   cacheElements();
   setupApiBridge();
   bindEvents();
   initScrollTop();
   setTheme(state.theme);
+  startLastUpdatedTimer();
   loadFeed();
 }

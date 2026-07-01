@@ -26,3 +26,12 @@ if (document.readyState === "loading") {
 } else {
   init();
 }
+
+// Register service worker for offline caching (PWA)
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {
+      // Fail silently — the app works without offline support
+    });
+  });
+}

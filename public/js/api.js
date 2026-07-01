@@ -46,6 +46,8 @@ export async function loadFeed() {
           });
         }
       } else if (event.type === "done") {
+        state.lastUpdated = event.updatedAt || null;
+        loadFeed._onStateChange?.("updated");
         loadFeed._onStateChange?.("errors", event.errors || []);
       }
     });
