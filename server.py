@@ -21,6 +21,16 @@ from email.utils import parsedate_to_datetime
 from pathlib import Path
 
 try:
+    import curl_cffi
+    from curl_cffi import CurlFollow
+
+    _CURL_CFFI_AVAILABLE = True
+except ImportError:
+    curl_cffi = None
+    CurlFollow = None
+    _CURL_CFFI_AVAILABLE = False
+
+try:
     import openai
 except ImportError:
     openai = None
@@ -427,6 +437,37 @@ class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 _SAFE_OPENER = urllib.request.build_opener(_SafeRedirectHandler)
+
+
+def _curl_fetch(url, headers, timeout=18):
+    """Fetch *url* with curl_cffi (Chrome 131 TLS fingerprint, SSRF-safe redirects).
+
+    Returns the response body as ``bytes``.  Converts curl_cffi exceptions to
+    urllib-compatible equivalents so existing catch blocks in
+    ``fetch_feed_collection`` and ``stream_feed`` handle them uniformly.
+
+    Callers must only invoke this when ``_CURL_CFFI_AVAILABLE`` is True.
+    """
+    try:
+        resp = curl_cffi.requests.get(
+            url,
+            headers=headers,
+            timeout=timeout,
+            impersonate="chrome131",
+            allow_redirects=CurlFollow.SAFE,
+        )
+        resp.raise_for_status()
+        return resp.content
+    except curl_cffi.requests.exceptions.Timeout as e:
+        raise TimeoutError(str(e)) from e
+    except curl_cffi.requests.exceptions.HTTPError as e:
+        raise urllib.error.URLError(f"HTTP error: {e}") from e
+    except curl_cffi.requests.exceptions.ConnectionError as e:
+        raise urllib.error.URLError(str(e)) from e
+    except curl_cffi.requests.exceptions.TooManyRedirects as e:
+        raise urllib.error.URLError(str(e)) from e
+    except curl_cffi.requests.exceptions.RequestException as e:
+        raise urllib.error.URLError(str(e)) from e
 
 
 def _last_hop(value):
@@ -1067,10 +1108,12 @@ def fetch_url(url, accept, extra_headers=None):
     if extra_headers:
         headers.update(extra_headers)
     headers["Accept"] = accept
-    request = urllib.request.Request(url, headers=headers)
-    # Use the SSRF-safe opener so redirects to internal addresses are
-    # rejected even for feed fetches (defence in depth).
-    with _SAFE_OPENER.open(request, timeout=18) as response:
+    if _CURL_CFFI_AVAILABLE:
+        return _curl_fetch(url, headers)
+    # Fallback: standard urllib with SSRF-safe redirect handling
+    # (defence in depth for environments where curl_cffi can't import).
+    req = urllib.request.Request(url, headers=headers)
+    with _SAFE_OPENER.open(req, timeout=18) as response:
         return response.read()
 
 

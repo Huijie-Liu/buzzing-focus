@@ -715,5 +715,174 @@ class NonTranslatableSourcesSyncTests(unittest.TestCase):
         self.assertEqual(set(ids), NON_TRANSLATABLE_SOURCES)
 
 
+class CurlFetchTests(unittest.TestCase):
+    """Tests for the curl_cffi fetch helper and its integration with fetch_url.
+
+    Uses ``patch.object`` on ``curl_cffi.requests.get`` so the real curl_cffi
+    module stays in place — this is critical because ``_curl_fetch`` references
+    ``curl_cffi.requests.exceptions.*`` in its ``except`` clauses, and those
+    must resolve to real exception classes."""
+
+    def setUp(self):
+        import server
+
+        self._orig_available = server._CURL_CFFI_AVAILABLE
+
+    def tearDown(self):
+        import server
+
+        server._CURL_CFFI_AVAILABLE = self._orig_available
+
+    # ------------------------------------------------------------------
+    # _curl_fetch — success path
+    # ------------------------------------------------------------------
+
+    def test_curl_fetch_returns_bytes_on_success(self):
+        """_curl_fetch returns response.content when the request succeeds."""
+        from unittest.mock import MagicMock, patch
+        import server
+
+        mock_resp = MagicMock()
+        mock_resp.content = b"<xml>feed content</xml>"
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch.object(
+            server.curl_cffi.requests, "get", return_value=mock_resp
+        ) as mock_get:
+            result = server._curl_fetch(
+                "https://example.com/rss", {"Accept": "text/xml"}
+            )
+            self.assertEqual(result, b"<xml>feed content</xml>")
+            mock_get.assert_called_once()
+
+    # ------------------------------------------------------------------
+    # _curl_fetch — exception conversion
+    # ------------------------------------------------------------------
+
+    def test_curl_fetch_converts_timeout_to_TimeoutError(self):
+        """Timeout from curl_cffi becomes builtin TimeoutError."""
+        from unittest.mock import patch
+        import server
+        from curl_cffi.requests.exceptions import Timeout as CurlTimeout
+
+        with patch.object(
+            server.curl_cffi.requests, "get", side_effect=CurlTimeout("timed out")
+        ):
+            with self.assertRaises(TimeoutError):
+                server._curl_fetch("https://example.com/rss", {})
+
+    def test_curl_fetch_converts_HTTPError_to_URLError(self):
+        """HTTP errors (e.g. 403) become urllib.error.URLError."""
+        from unittest.mock import patch
+        import server
+        import urllib.error
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        with patch.object(
+            server.curl_cffi.requests, "get",
+            side_effect=CurlHTTPError("403 Forbidden"),
+        ):
+            with self.assertRaises(urllib.error.URLError):
+                server._curl_fetch("https://example.com/rss", {})
+
+    def test_curl_fetch_converts_ConnectionError_to_URLError(self):
+        """Connection errors become urllib.error.URLError."""
+        from unittest.mock import patch
+        import server
+        import urllib.error
+        from curl_cffi.requests.exceptions import ConnectionError as CurlConnError
+
+        with patch.object(
+            server.curl_cffi.requests, "get",
+            side_effect=CurlConnError("refused"),
+        ):
+            with self.assertRaises(urllib.error.URLError):
+                server._curl_fetch("https://example.com/rss", {})
+
+    def test_curl_fetch_converts_TooManyRedirects_to_URLError(self):
+        """TooManyRedirects becomes urllib.error.URLError."""
+        from unittest.mock import patch
+        import server
+        import urllib.error
+        from curl_cffi.requests.exceptions import TooManyRedirects
+
+        with patch.object(
+            server.curl_cffi.requests, "get",
+            side_effect=TooManyRedirects("too many redirects"),
+        ):
+            with self.assertRaises(urllib.error.URLError):
+                server._curl_fetch("https://example.com/rss", {})
+
+    def test_curl_fetch_converts_generic_RequestException_to_URLError(self):
+        """Any other curl_cffi RequestException becomes urllib.error.URLError."""
+        from unittest.mock import patch
+        import server
+        import urllib.error
+        from curl_cffi.requests.exceptions import RequestException
+
+        with patch.object(
+            server.curl_cffi.requests, "get",
+            side_effect=RequestException("something else"),
+        ):
+            with self.assertRaises(urllib.error.URLError):
+                server._curl_fetch("https://example.com/rss", {})
+
+    # ------------------------------------------------------------------
+    # fetch_url — routing
+    # ------------------------------------------------------------------
+
+    def test_fetch_url_uses_urllib_when_curl_cffi_unavailable(self):
+        """fetch_url falls back to urllib when _CURL_CFFI_AVAILABLE is False."""
+        from unittest.mock import MagicMock, patch
+        import server
+
+        server._CURL_CFFI_AVAILABLE = False
+
+        with patch.object(server._SAFE_OPENER, "open") as mock_open:
+            mock_resp = MagicMock()
+            mock_resp.read.return_value = b"urllib response"
+            mock_open.return_value.__enter__.return_value = mock_resp
+
+            result = server.fetch_url(
+                "https://example.com/rss",
+                "application/rss+xml",
+            )
+            self.assertEqual(result, b"urllib response")
+            mock_open.assert_called_once()
+
+    def test_fetch_url_uses_curl_cffi_when_available(self):
+        """fetch_url uses _curl_fetch when _CURL_CFFI_AVAILABLE is True."""
+        from unittest.mock import patch
+        import server
+
+        server._CURL_CFFI_AVAILABLE = True
+
+        with patch("server._curl_fetch", return_value=b"curl_cffi response") as mock_cf:
+            result = server.fetch_url(
+                "https://example.com/rss",
+                "application/rss+xml",
+            )
+            self.assertEqual(result, b"curl_cffi response")
+            mock_cf.assert_called_once()
+
+    def test_fetch_url_passes_extra_headers(self):
+        """fetch_url merges extra_headers and passes them to _curl_fetch."""
+        from unittest.mock import patch
+        import server
+
+        server._CURL_CFFI_AVAILABLE = True
+
+        with patch("server._curl_fetch", return_value=b"ok") as mock_cf:
+            server.fetch_url(
+                "https://example.com/rss",
+                "application/rss+xml",
+                extra_headers={"X-Custom": "value"},
+            )
+            called_headers = mock_cf.call_args[0][1]
+            self.assertIn("X-Custom", called_headers)
+            self.assertEqual(called_headers["X-Custom"], "value")
+            self.assertEqual(called_headers["Accept"], "application/rss+xml")
+
+
 if __name__ == "__main__":
     unittest.main()
