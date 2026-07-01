@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Buzzing Focus — multi-source news aggregator.
+"""What's Buzzing — multi-source news aggregator.
 
 Thin entry point.  All domain logic lives in ``src/``.
 This module re-exports the public API so existing callers
@@ -78,7 +78,7 @@ from src.app import (
 if __name__ == "__main__":
     from werkzeug.serving import make_server
     srv = make_server(HOST, PORT, app, threaded=True)
-    print(f"Buzzing Focus running at http://{HOST}:{PORT}")
+    print(f"What's Buzzing running at http://{HOST}:{PORT}")
     try:
         srv.serve_forever()
     except KeyboardInterrupt:

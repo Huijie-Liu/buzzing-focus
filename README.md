@@ -1,4 +1,4 @@
-# Buzzing Focus
+# What's Buzzing
 
 一个聚合多源新闻的网页应用，支持 AI 翻译与要闻总结。
 

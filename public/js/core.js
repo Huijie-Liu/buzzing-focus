@@ -113,7 +113,7 @@ export function sourceCount(sourceKey) {
 // Read from the config injected in index.html (kept in sync with
 // NON_TRANSLATABLE_SOURCES in server.py); fall back to a hardcoded list
 // so a missing config never breaks the page.
-const _cfg = (window.__BUZZING_CONFIG__ || {});
+const _cfg = (window.__WHATS_BUZZING_CONFIG__ || {});
 const NON_TRANSLATABLE_SOURCES = new Set(
   _cfg.nonTranslatableSources || ["zhihu", "google_zh", "linux_do", "linux_do_top", "hupu_nba", "hupu_soccer", "hupu_lol"]
 );
